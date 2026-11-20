@@ -1,0 +1,2718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Hachi — 3D Interactive Doggy Studio</title>
+  <style>
+    :root {
+      --background: #f5f0e8;
+      --card: #fffdf9;
+      --foreground: #231d18;
+      --muted-foreground: #74695f;
+      --border: #e5dccf;
+      --primary: #d97236;
+      --primary-foreground: #ffffff;
+      --secondary: #f2ebe0;
+      --secondary-foreground: #2f2720;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --background: #1d1e22;
+        --card: #25272d;
+        --foreground: #f4efe8;
+        --muted-foreground: #a49c93;
+        --border: #373a42;
+        --primary: #e58347;
+        --primary-foreground: #19130f;
+        --secondary: #30333b;
+        --secondary-foreground: #efe9e1;
+      }
+    }
+    * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+    html, body {
+      margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--background); color: var(--foreground);
+      -webkit-font-smoothing: antialiased;
+    }
+    body { display: flex; flex-direction: column; }
+    @media (min-width: 960px) { body { flex-direction: row; } }
+
+    #stageContainer {
+      position: relative; flex: 1; min-height: 54%; height: 100%; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .stage-canvas { width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
+    .stage-canvas:active { cursor: grabbing; }
+    #reactionLayer { pointer-events: none; position: absolute; inset: 0; overflow: hidden; }
+
+    .glass {
+      background: color-mix(in srgb, var(--card) 86%, transparent);
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    }
+    .top-left { position: absolute; top: 12px; left: 12px; display: flex; flex-direction: column; gap: 6px; z-index: 10; max-width: 280px; }
+    .name-bar { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 12px; }
+    #dogNameInput {
+      background: transparent; border: none; outline: none; font-weight: 600; font-size: 14px;
+      color: var(--foreground); width: 108px; user-select: text; -webkit-user-select: text;
+    }
+    #moodBadge {
+      font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px;
+      background: var(--secondary); color: var(--secondary-foreground); white-space: nowrap;
+    }
+    .stats-bar {
+      display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 9px;
+      font-size: 12px; color: var(--muted-foreground); width: fit-content;
+    }
+    .stats-bar strong { color: var(--foreground); font-variant-numeric: tabular-nums; }
+
+    .top-right { position: absolute; top: 12px; right: 12px; display: flex; gap: 6px; z-index: 10; flex-wrap: wrap; justify-content: flex-end; }
+    .action-dock {
+      position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px;
+      padding: 7px 10px; border-radius: 16px; z-index: 10; max-width: 95%;
+    }
+    .hint-badge {
+      display: none; position: absolute; bottom: 12px; left: 12px; font-size: 11px;
+      color: var(--muted-foreground); padding: 4px 10px; border-radius: 8px; pointer-events: none; z-index: 10;
+    }
+    @media (min-width: 720px) { .hint-badge { display: block; } }
+
+    button {
+      font: inherit; cursor: pointer; color: var(--foreground);
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 9px; padding: 6px 10px; font-size: 12px; font-weight: 500;
+      transition: transform 0.12s ease, background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    }
+    button:hover { border-color: var(--primary); }
+    button:active { transform: scale(0.96); }
+    button.primary-btn { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); font-weight: 600; }
+    button.secondary-btn { background: var(--secondary); color: var(--secondary-foreground); }
+    button.is-active { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); font-weight: 600; }
+
+    aside {
+      width: 100%; height: 44%; flex-shrink: 0; background: var(--card);
+      border-top: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden;
+    }
+    @media (min-width: 960px) {
+      aside { width: 315px; height: 100%; border-top: none; border-left: 1px solid var(--border); }
+    }
+    .panel-head {
+      padding: 12px 16px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .panel-head h1 { margin: 0; font-size: 14px; font-weight: 700; }
+    .panel-head p { margin: 2px 0 0; font-size: 12px; color: var(--muted-foreground); }
+    .panel-scroll { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 16px; }
+    .panel-scroll::-webkit-scrollbar { width: 5px; }
+    .panel-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
+
+    .sec-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted-foreground); margin-bottom: 6px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+    .flex-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
+    .outfit-btn { display: flex; align-items: center; gap: 7px; text-align: left; }
+    .outfit-btn.span-2 { grid-column: span 2; }
+    .swatch { width: 12px; height: 12px; border-radius: 999px; border: 1px solid rgba(0,0,0,0.2); flex-shrink: 0; }
+    .tog-btn { display: flex; align-items: center; justify-content: space-between; }
+    .state-dot { font-size: 10px; opacity: 0.75; }
+
+    @keyframes floatUp {
+      0% { opacity: 0; transform: translate(-50%, 6px) scale(0.75); }
+      20% { opacity: 1; transform: translate(-50%, -8px) scale(1.06); }
+      100% { opacity: 0; transform: translate(-50%, -44px) scale(0.95); }
+    }
+    .speech-bubble {
+      position: absolute; padding: 5px 12px; border-radius: 999px;
+      background: var(--card); border: 1px solid var(--border);
+      font-size: 12px; font-weight: 600; color: var(--foreground);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12); white-space: nowrap;
+      animation: floatUp 1.65s ease-out forwards; pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="stageContainer">
+    <canvas id="glCanvas" class="stage-canvas"></canvas>
+    <div id="reactionLayer"></div>
+
+    <div class="top-left">
+      <div class="name-bar glass">
+        <span aria-hidden="true">🐾</span>
+        <input id="dogNameInput" type="text" value="Hachi" maxlength="24" aria-label="Doggy name" />
+        <span id="moodBadge">Happy &amp; Wagging</span>
+      </div>
+      <div class="stats-bar glass">
+        <span>Boops: <strong id="boopCount">0</strong></span>
+        <span style="opacity:0.4">·</span>
+        <span>Pets: <strong id="petCount">0</strong></span>
+      </div>
+    </div>
+
+    <div class="top-right">
+      <button id="camFaceBtn" class="glass">Face Close-up</button>
+      <button id="camFullBtn" class="glass">Full Body</button>
+      <button id="spinToggleBtn" class="glass">Spin: Off</button>
+    </div>
+
+    <div class="action-dock glass">
+      <button id="actBoop" class="primary-btn">👆 Boop Nose</button>
+      <button id="actPet" class="secondary-btn">💛 Pet Head</button>
+      <button id="actTreat" class="secondary-btn">🦴 Give Treat</button>
+      <button id="actBark" class="secondary-btn">🔊 Speak</button>
+      <button id="actSound" title="Toggle sound">🔈</button>
+    </div>
+
+    <div class="hint-badge glass">Drag to orbit · Scroll / pinch to zoom · Tap nose or head!</div>
+  </div>
+
+  <aside>
+    <div class="panel-head">
+      <div>
+        <h1>Hachi 3D Studio</h1>
+        <p>Interactive 3D Portrait</p>
+      </div>
+      <button id="resetAllBtn">Reset</button>
+    </div>
+
+    <div class="panel-scroll">
+      <section>
+        <div class="sec-title">Pose</div>
+        <div id="poseGroup" class="grid-4">
+          <button data-pose="stand">Stand</button>
+          <button data-pose="sit">Sit</button>
+          <button data-pose="lounge">Lounge</button>
+          <button data-pose="playful">Playful</button>
+        </div>
+      </section>
+
+      <section>
+        <div class="sec-title">Expression</div>
+        <div id="exprGroup" class="flex-wrap">
+          <button data-expr="sweet">Sweet</button>
+          <button data-expr="pant">Happy Pant</button>
+          <button data-expr="blep">Nose Blep</button>
+          <button data-expr="tilt">Head Tilt</button>
+          <button data-expr="sleepy">Sleepy</button>
+        </div>
+      </section>
+
+      <section>
+        <div class="sec-title">Coat &amp; Style</div>
+        <div id="coatGroup" class="grid-3">
+          <button data-coat="shaggy">Shaggy</button>
+          <button data-coat="puppycut">Puppy Cut</button>
+          <button data-coat="baby2012">2012 Baby</button>
+        </div>
+      </section>
+
+      <section>
+        <div class="sec-title">Wardrobe</div>
+        <div id="outfitGroup" class="grid-2">
+          <button data-outfit="none" class="outfit-btn"><span class="swatch" style="background:#efe0c4"></span>Natural Coat</button>
+          <button data-outfit="teal" class="outfit-btn"><span class="swatch" style="background:#0093b2"></span>Teal T-Shirt</button>
+          <button data-outfit="mustard" class="outfit-btn"><span class="swatch" style="background:#d9942a"></span>Mustard Jacket</button>
+          <button data-outfit="boo" class="outfit-btn"><span class="swatch" style="background:#e26058"></span>Boo Sweater</button>
+          <button data-outfit="orange" class="outfit-btn"><span class="swatch" style="background:#e35825"></span>Orange Vest</button>
+          <button data-outfit="red" class="outfit-btn"><span class="swatch" style="background:#b92434"></span>Red Fleece</button>
+          <button data-outfit="harness" class="outfit-btn span-2"><span class="swatch" style="background:#be1d56"></span>Berry Walk Harness</button>
+        </div>
+      </section>
+
+      <section>
+        <div class="sec-title">Accessories &amp; Props</div>
+        <div class="grid-2">
+          <button id="togGlasses" class="tog-btn"><span>👓 Glasses</span><span class="state-dot">Off</span></button>
+          <button id="togPlushie" class="tog-btn"><span>🧸 Pooh Bear</span><span class="state-dot">On</span></button>
+          <button id="togCushion" class="tog-btn"><span>🛋️ Cushions</span><span class="state-dot">On</span></button>
+          <button id="togTreat" class="tog-btn"><span>🥩 Chew Stick</span><span class="state-dot">Off</span></button>
+        </div>
+      </section>
+
+      <section>
+        <div class="sec-title">Lighting</div>
+        <div id="lightGroup" class="grid-3">
+          <button data-light="balcony">Balcony</button>
+          <button data-light="cozy">Cozy Lamp</button>
+          <button data-light="studio">Studio</button>
+        </div>
+      </section>
+    </div>
+  </aside>
+
+<script>
+(() => {
+  'use strict';
+
+  // =========================================================================
+  // 1. Minimal High-Precision 3D Math Library (Mat4)
+  // =========================================================================
+  const M4 = {
+    create: () => new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]),
+    copy(out, a) { out.set(a); return out; },
+    multiply(out, a, b) {
+      const a00=a[0],a01=a[1],a02=a[2],a03=a[3],
+            a10=a[4],a11=a[5],a12=a[6],a13=a[7],
+            a20=a[8],a21=a[9],a22=a[10],a23=a[11],
+            a30=a[12],a31=a[13],a32=a[14],a33=a[15];
+      let b0=b[0],b1=b[1],b2=b[2],b3=b[3];
+      out[0]=b0*a00+b1*a10+b2*a20+b3*a30;
+      out[1]=b0*a01+b1*a11+b2*a21+b3*a31;
+      out[2]=b0*a02+b1*a12+b2*a22+b3*a32;
+      out[3]=b0*a03+b1*a13+b2*a23+b3*a33;
+      b0=b[4];b1=b[5];b2=b[6];b3=b[7];
+      out[4]=b0*a00+b1*a10+b2*a20+b3*a30;
+      out[5]=b0*a01+b1*a11+b2*a21+b3*a31;
+      out[6]=b0*a02+b1*a12+b2*a22+b3*a32;
+      out[7]=b0*a03+b1*a13+b2*a23+b3*a33;
+      b0=b[8];b1=b[9];b2=b[10];b3=b[11];
+      out[8]=b0*a00+b1*a10+b2*a20+b3*a30;
+      out[9]=b0*a01+b1*a11+b2*a21+b3*a31;
+      out[10]=b0*a02+b1*a12+b2*a22+b3*a32;
+      out[11]=b0*a03+b1*a13+b2*a23+b3*a33;
+      b0=b[12];b1=b[13];b2=b[14];b3=b[15];
+      out[12]=b0*a00+b1*a10+b2*a20+b3*a30;
+      out[13]=b0*a01+b1*a11+b2*a21+b3*a31;
+      out[14]=b0*a02+b1*a12+b2*a22+b3*a32;
+      out[15]=b0*a03+b1*a13+b2*a23+b3*a33;
+      return out;
+    },
+    translate(out, a, x, y, z) {
+      if (out !== a) out.set(a);
+      out[12] = a[0]*x + a[4]*y + a[8]*z + a[12];
+      out[13] = a[1]*x + a[5]*y + a[9]*z + a[13];
+      out[14] = a[2]*x + a[6]*y + a[10]*z + a[14];
+      out[15] = a[3]*x + a[7]*y + a[11]*z + a[15];
+      return out;
+    },
+    scale(out, a, x, y, z) {
+      out[0]=a[0]*x; out[1]=a[1]*x; out[2]=a[2]*x; out[3]=a[3]*x;
+      out[4]=a[4]*y; out[5]=a[5]*y; out[6]=a[6]*y; out[7]=a[7]*y;
+      out[8]=a[8]*z; out[9]=a[9]*z; out[10]=a[10]*z; out[11]=a[11]*z;
+      out[12]=a[12]; out[13]=a[13]; out[14]=a[14]; out[15]=a[15];
+      return out;
+    },
+    rotateX(out, a, rad) {
+      const s=Math.sin(rad), c=Math.cos(rad);
+      const a10=a[4],a11=a[5],a12=a[6],a13=a[7],
+            a20=a[8],a21=a[9],a22=a[10],a23=a[11];
+      if (out !== a) out.set(a);
+      out[4]=a10*c+a20*s; out[5]=a11*c+a21*s; out[6]=a12*c+a22*s; out[7]=a13*c+a23*s;
+      out[8]=a20*c-a10*s; out[9]=a21*c-a11*s; out[10]=a22*c-a12*s; out[11]=a23*c-a13*s;
+      return out;
+    },
+    rotateY(out, a, rad) {
+      const s=Math.sin(rad), c=Math.cos(rad);
+      const a00=a[0],a01=a[1],a02=a[2],a03=a[3],
+            a20=a[8],a21=a[9],a22=a[10],a23=a[11];
+      if (out !== a) out.set(a);
+      out[0]=a00*c-a20*s; out[1]=a01*c-a21*s; out[2]=a02*c-a22*s; out[3]=a03*c-a23*s;
+      out[8]=a00*s+a20*c; out[9]=a01*s+a21*c; out[10]=a02*s+a22*c; out[11]=a03*s+a23*c;
+      return out;
+    },
+    rotateZ(out, a, rad) {
+      const s=Math.sin(rad), c=Math.cos(rad);
+      const a00=a[0],a01=a[1],a02=a[2],a03=a[3],
+            a10=a[4],a11=a[5],a12=a[6],a13=a[7];
+      if (out !== a) out.set(a);
+      out[0]=a00*c+a10*s; out[1]=a01*c+a11*s; out[2]=a02*c+a12*s; out[3]=a03*c+a13*s;
+      out[4]=a10*c-a00*s; out[5]=a11*c-a01*s; out[6]=a12*c-a02*s; out[7]=a13*c-a03*s;
+      return out;
+    },
+    perspective(out, fovy, aspect, near, far) {
+      const f = 1.0 / Math.tan(fovy / 2);
+      const nf = 1 / (near - far);
+      out.fill(0);
+      out[0] = f / aspect;
+      out[5] = f;
+      out[10] = (far + near) * nf;
+      out[11] = -1;
+      out[14] = (2 * far * near) * nf;
+      return out;
+    },
+    lookAt(out, eye, center, up) {
+      let zx = eye[0]-center[0], zy = eye[1]-center[1], zz = eye[2]-center[2];
+      let len = Math.hypot(zx, zy, zz) || 1;
+      zx/=len; zy/=len; zz/=len;
+      let xx = up[1]*zz - up[2]*zy, xy = up[2]*zx - up[0]*zz, xz = up[0]*zy - up[1]*zx;
+      len = Math.hypot(xx, xy, xz) || 1;
+      xx/=len; xy/=len; xz/=len;
+      let yx = zy*xz - zz*xy, yy = zz*xx - zx*xz, yz = zx*xy - zy*xx;
+      out[0]=xx; out[1]=yx; out[2]=zx; out[3]=0;
+      out[4]=xy; out[5]=yy; out[6]=zy; out[7]=0;
+      out[8]=xz; out[9]=yz; out[10]=zz; out[11]=0;
+      out[12]=-(xx*eye[0]+xy*eye[1]+xz*eye[2]);
+      out[13]=-(yx*eye[0]+yy*eye[1]+yz*eye[2]);
+      out[14]=-(zx*eye[0]+zy*eye[1]+zz*eye[2]);
+      out[15]=1;
+      return out;
+    },
+    normalMat3(out, m) {
+      const a00=m[0],a01=m[1],a02=m[2],
+            a10=m[4],a11=m[5],a12=m[6],
+            a20=m[8],a21=m[9],a22=m[10];
+      const b01 = a22*a11 - a12*a21;
+      const b11 = -a22*a10 + a12*a20;
+      const b21 = a21*a10 - a11*a20;
+      let det = a00*b01 + a01*b11 + a02*b21;
+      if (Math.abs(det) < 1e-8) det = 1;
+      const id = 1.0 / det;
+      out[0] = b01 * id;
+      out[1] = (-a22*a01 + a02*a21) * id;
+      out[2] = (a12*a01 - a02*a11) * id;
+      out[3] = b11 * id;
+      out[4] = (a22*a00 - a02*a20) * id;
+      out[5] = (-a12*a00 + a02*a10) * id;
+      out[6] = b21 * id;
+      out[7] = (-a21*a00 + a01*a20) * id;
+      out[8] = (a11*a00 - a01*a10) * id;
+      return out;
+    },
+    transformPoint(m, x, y, z) {
+      return [
+        m[0]*x + m[4]*y + m[8]*z + m[12],
+        m[1]*x + m[5]*y + m[9]*z + m[13],
+        m[2]*x + m[6]*y + m[10]*z + m[14]
+      ];
+    },
+    invert(out, a) {
+      const a00=a[0],a01=a[1],a02=a[2],a03=a[3],
+            a10=a[4],a11=a[5],a12=a[6],a13=a[7],
+            a20=a[8],a21=a[9],a22=a[10],a23=a[11],
+            a30=a[12],a31=a[13],a32=a[14],a33=a[15];
+      const b00=a00*a11-a01*a10, b01=a00*a12-a02*a10, b02=a00*a13-a03*a10,
+            b03=a01*a12-a02*a11, b04=a01*a13-a03*a11, b05=a02*a13-a03*a12,
+            b06=a20*a31-a21*a30, b07=a20*a32-a22*a30, b08=a20*a33-a23*a30,
+            b09=a21*a32-a22*a31, b10=a21*a33-a23*a31, b11=a22*a33-a23*a32;
+      let det = b00*b11-b01*b10+b02*b09+b03*b08-b04*b07+b05*b06;
+      if (!det) return null;
+      det = 1.0/det;
+      out[0]=(a11*b11-a12*b10+a13*b09)*det;
+      out[1]=(a02*b10-a01*b11-a03*b09)*det;
+      out[2]=(a31*b05-a32*b04+a33*b03)*det;
+      out[3]=(a22*b04-a21*b05-a23*b03)*det;
+      out[4]=(a12*b08-a10*b11-a13*b07)*det;
+      out[5]=(a00*b11-a02*b08+a03*b07)*det;
+      out[6]=(a32*b02-a30*b05-a33*b01)*det;
+      out[7]=(a20*b05-a22*b02+a23*b01)*det;
+      out[8]=(a10*b10-a11*b08+a13*b06)*det;
+      out[9]=(a01*b08-a00*b10-a03*b06)*det;
+      out[10]=(a30*b04-a31*b02+a33*b00)*det;
+      out[11]=(a21*b02-a20*b04-a23*b00)*det;
+      out[12]=(a11*b07-a10*b09-a12*b06)*det;
+      out[13]=(a00*b09-a01*b07+a02*b06)*det;
+      out[14]=(a31*b01-a30*b03-a32*b00)*det;
+      out[15]=(a20*b03-a21*b01+a22*b00)*det;
+      return out;
+    }
+  };
+
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const smoothstepJS = (e0, e1, x) => {
+    const t = clamp((x - e0) / (e1 - e0), 0, 1);
+    return t * t * (3 - 2 * t);
+  };
+
+  function mulberry32(seed) {
+    let a = seed >>> 0;
+    return () => {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // =========================================================================
+  // 2. WebGL Context & Custom Filmic Fur / Soulful Eye / Fabric Shaders
+  // =========================================================================
+  const canvas = document.getElementById('glCanvas');
+  const gl = canvas.getContext('webgl', { antialias: true, alpha: true, preserveDrawingBuffer: true });
+  if (!gl) {
+    canvas.parentElement.innerHTML = '<div class="p-6 text-center text-sm text-[var(--muted-foreground)]">WebGL is not available in this browser context.</div>';
+    return;
+  }
+
+  const VS_MAIN = `
+    attribute vec3 aPos;
+    attribute vec3 aNorm;
+    attribute vec2 aUV;
+    attribute vec3 aColor;
+
+    uniform mat4 uProj;
+    uniform mat4 uView;
+    uniform mat4 uModel;
+    uniform mat3 uNormalMat;
+
+    varying vec3 vWorldPos;
+    varying vec3 vObjPos;
+    varying vec3 vNormal;
+    varying vec2 vUV;
+    varying vec3 vColor;
+
+    void main() {
+      vec4 wp = uModel * vec4(aPos, 1.0);
+      vWorldPos = wp.xyz;
+      vObjPos = aPos;
+      vNormal = normalize(uNormalMat * aNorm);
+      vUV = aUV;
+      vColor = aColor;
+      gl_Position = uProj * uView * wp;
+    }
+  `;
+
+  // uMatType:
+  // 0 = Soft Curly Maltipoo Fur (multi-octave curl strands + velvety rim + soft filmic tone)
+  // 1 = Wet Glossy Heart Nose (subtle leather texture + warm rosy upper bridge + specular)
+  // 2 = Soulful Dark Eyes (deep espresso cornea + warm brown iris crescent + crisp dual catchlights!)
+  // 3 = Fabric / Outfit (soft fleece/cotton micro-weave + optional Boo/Mario texture)
+  // 4 = Matte / Plushie / Cushion / Chew Stick / Tongue
+  // 5 = Ultra-Clear Crystal Glasses Lens (clean faint reflection so dark eyes shine through!)
+  // 6 = Seamless Shadow Ground Plane (blends smoothly into background with soft contact shadows)
+  const FS_MAIN = `
+    precision highp float;
+
+    varying vec3 vWorldPos;
+    varying vec3 vObjPos;
+    varying vec3 vNormal;
+    varying vec2 vUV;
+    varying vec3 vColor;
+
+    uniform vec3 uCamPos;
+    uniform vec3 uBaseColor;
+    uniform vec3 uTipColor;
+    uniform int uMatType;
+    uniform float uFurScale;
+    uniform float uAlpha;
+    uniform float uUseTex;
+    uniform sampler2D uTex;
+
+    uniform vec3 uKeyDir;
+    uniform vec3 uKeyCol;
+    uniform vec3 uFillDir;
+    uniform vec3 uFillCol;
+    uniform vec3 uRimDir;
+    uniform vec3 uRimCol;
+    uniform vec3 uAmbSky;
+    uniform vec3 uAmbGround;
+
+    uniform vec3 uShadowPos0;
+    uniform vec3 uShadowPos1;
+    uniform vec3 uBgColor;
+    uniform float uCushionOn;
+
+    float hash31(vec3 p) {
+      p = fract(p * 0.1031);
+      p += dot(p, p.yzx + 33.33);
+      return fract((p.x + p.y) * p.z);
+    }
+
+    float noise3(vec3 p) {
+      vec3 i = floor(p);
+      vec3 f = fract(p);
+      f = f * f * (3.0 - 2.0 * f);
+      float n000 = hash31(i + vec3(0,0,0));
+      float n100 = hash31(i + vec3(1,0,0));
+      float n010 = hash31(i + vec3(0,1,0));
+      float n110 = hash31(i + vec3(1,1,0));
+      float n001 = hash31(i + vec3(0,0,1));
+      float n101 = hash31(i + vec3(1,0,1));
+      float n011 = hash31(i + vec3(0,1,1));
+      float n111 = hash31(i + vec3(1,1,1));
+      return mix(
+        mix(mix(n000, n100, f.x), mix(n010, n110, f.x), f.y),
+        mix(mix(n001, n101, f.x), mix(n011, n111, f.x), f.y),
+        f.z
+      );
+    }
+
+    float fbmFur(vec3 p) {
+      float v = 0.0;
+      float amp = 0.55;
+      for (int i = 0; i < 3; i++) {
+        v += amp * noise3(p);
+        p = p * 2.05 + vec3(1.7, -2.3, 0.9);
+        amp *= 0.48;
+      }
+      return v;
+    }
+
+    // Soft ACES-inspired filmic curve so cream fur never clips to harsh neon white!
+    vec3 filmic(vec3 c) {
+      c = max(c, 0.0);
+      return (c * (2.25 * c + 0.04)) / (c * (2.15 * c + 0.58) + 0.12);
+    }
+
+    void main() {
+      vec3 N = normalize(vNormal);
+      vec3 V = normalize(uCamPos - vWorldPos);
+      vec3 Lkey = normalize(uKeyDir);
+      vec3 Lfill = normalize(uFillDir);
+      vec3 Lrim = normalize(uRimDir);
+
+      // 6: Seamless ground contact shadow plane (zero harsh disc ring!)
+      if (uMatType == 6) {
+        vec2 d0 = (vWorldPos.xz - uShadowPos0.xy) / uShadowPos0.z;
+        float sh0 = exp(-dot(d0, d0) * 1.55);
+        vec2 d1 = (vWorldPos.xz - uShadowPos1.xy) / uShadowPos1.z;
+        float sh1 = exp(-dot(d1, d1) * 2.0) * step(0.05, uShadowPos1.z);
+        vec2 dc = vWorldPos.xz / vec2(0.84, 0.80);
+        float shC = uCushionOn * exp(-pow(max(abs(dc.x), abs(dc.y)), 2.8) * 1.65) * 0.58;
+        float shadow = clamp(max(sh0 * 0.45, shC) + sh1 * 0.30, 0.0, 0.65);
+        vec3 shadowCol = uBgColor * vec3(0.46, 0.42, 0.40);
+        gl_FragColor = vec4(shadowCol, shadow);
+        return;
+      }
+
+      vec3 albedo = uBaseColor * vColor;
+
+      // 0: Soft Curly Maltipoo Fur Shader
+      if (uMatType == 0) {
+        vec3 fp = vObjPos * uFurScale;
+        float curl = sin(fp.y * 2.2 + fp.x * 1.5 + noise3(fp * 0.85) * 4.2);
+        float strand = fbmFur(vec3(fp.x * 1.5 + curl * 0.35, fp.y * 0.78, fp.z * 1.5 - curl * 0.25));
+        float fine = noise3(fp * vec3(4.2, 2.5, 4.2));
+
+        // Gentle normal perturbation for soft downy curly texture
+        vec3 nPerturb = vec3((strand - 0.5) * 0.38, (fine - 0.5) * 0.26, curl * 0.18);
+        N = normalize(N + nPerturb * 0.48);
+
+        float tipMix = clamp(strand * 0.72 + fine * 0.32 - 0.12, 0.0, 1.0);
+        albedo = mix(uBaseColor, uTipColor, tipMix) * vColor;
+
+        // Balanced soft wrapped diffuse (preserves warm cream depth!)
+        float ndlKey = clamp((dot(N, Lkey) + 0.36) / 1.36, 0.0, 1.0);
+        float ndlFill = clamp((dot(N, Lfill) + 0.45) / 1.45, 0.0, 1.0);
+        float hemi = N.y * 0.5 + 0.5;
+        vec3 ambient = mix(uAmbGround, uAmbSky, hemi);
+
+        // Subtle warm fuzzy edge rim light (velvety backlit fuzz, not blown out)
+        float fresnel = pow(1.0 - max(dot(N, V), 0.0), 2.8);
+        float rimBack = clamp(dot(N, Lrim) * 0.5 + 0.5, 0.0, 1.0);
+        vec3 sheen = uRimCol * fresnel * (0.35 + 0.65 * rimBack) * 0.28;
+
+        // Soft crevice AO under chin & underside
+        float ao = mix(0.76, 1.02, clamp(N.y * 0.5 + 0.55, 0.0, 1.0));
+
+        vec3 lit = albedo * (ambient * 0.48 + uKeyCol * ndlKey * 0.56 + uFillCol * ndlFill * 0.20) * ao + sheen;
+        gl_FragColor = vec4(filmic(lit), uAlpha);
+        return;
+      }
+
+      // 1: Wet Glossy Heart-Shaped Doggy Nose
+      if (uMatType == 1) {
+        float leather = noise3(vObjPos * 64.0);
+        N = normalize(N + vec3(leather - 0.5) * 0.15);
+        float bridge = smoothstep(0.05, 0.72, N.y) * smoothstep(-0.01, 0.04, vObjPos.y + 0.01);
+        vec3 noseCol = mix(uBaseColor, uTipColor, bridge * 0.58) * vColor;
+        float ndl = max(dot(N, Lkey), 0.0);
+        float ndlF = max(dot(N, Lfill), 0.0);
+        vec3 H = normalize(Lkey + V);
+        float spec = pow(max(dot(N, H), 0.0), 42.0) * 0.52;
+        float spec2 = pow(max(dot(N, normalize(Lfill + V)), 0.0), 22.0) * 0.18;
+        float fres = pow(1.0 - max(dot(N, V), 0.0), 3.0) * 0.14;
+        vec3 col = noseCol * (uAmbSky * 0.36 + uKeyCol * ndl * 0.65 + uFillCol * ndlF * 0.22)
+                 + vec3(1.0, 0.96, 0.94) * (spec + spec2 + fres);
+        gl_FragColor = vec4(filmic(col), uAlpha);
+        return;
+      }
+
+      // 2: Soulful Glossy Dark Eyes with Guaranteed Camera-Facing Dual Catchlights!
+      if (uMatType == 2) {
+        // Compute camera right/up basis for crisp studio window catchlights from ANY orbit angle
+        vec3 camRight = normalize(cross(vec3(0.0, 1.0, 0.0), V));
+        vec3 camUp = normalize(cross(V, camRight));
+        vec3 cDir1 = normalize(V * 0.84 + camRight * 0.34 + camUp * 0.42);
+        vec3 cDir2 = normalize(V * 0.88 - camRight * 0.32 - camUp * 0.28);
+        float catch1 = smoothstep(0.958, 0.985, dot(N, cDir1));
+        float catch2 = smoothstep(0.982, 0.995, dot(N, cDir2)) * 0.65;
+        // Subtle warm chestnut iris ring on lower half of cornea
+        float irisRing = smoothstep(0.28, 0.78, 1.0 - max(dot(N, V), 0.0)) * smoothstep(0.25, -0.35, dot(N, camUp));
+        vec3 eyeCol = mix(vec3(0.035, 0.02, 0.018), vec3(0.32, 0.16, 0.08), irisRing * 0.62);
+        float rimWet = pow(1.0 - max(dot(N, V), 0.0), 3.2) * 0.14;
+        vec3 col = eyeCol + vec3(1.0, 0.99, 0.96) * (catch1 * 0.95 + catch2) + uAmbSky * rimWet;
+        gl_FragColor = vec4(col, uAlpha);
+        return;
+      }
+
+      // 3: Fabric / Outfit (soft weave + optional Boo/Mario texture)
+      if (uMatType == 3) {
+        vec3 texCol = vec3(1.0);
+        if (uUseTex > 0.5) {
+          texCol = texture2D(uTex, vUV).rgb;
+        }
+        float weave = noise3(vObjPos * 46.0);
+        albedo = albedo * texCol * (0.93 + 0.12 * weave);
+        float ndl = clamp((dot(N, Lkey) + 0.28) / 1.28, 0.0, 1.0);
+        float ndlF = clamp((dot(N, Lfill) + 0.35) / 1.35, 0.0, 1.0);
+        float fres = pow(1.0 - max(dot(N, V), 0.0), 3.0) * 0.14;
+        vec3 hemi = mix(uAmbGround, uAmbSky, N.y * 0.5 + 0.5);
+        vec3 col = albedo * (hemi * 0.48 + uKeyCol * ndl * 0.62 + uFillCol * ndlF * 0.20) + uRimCol * fres * 0.35;
+        gl_FragColor = vec4(filmic(col), uAlpha);
+        return;
+      }
+
+      // 5: Ultra-Clear Crystal Glasses Lens (clean subtle diagonal shine, eyes fully visible!)
+      if (uMatType == 5) {
+        vec3 H = normalize(Lkey + V);
+        float spec = pow(max(dot(N, H), 0.0), 64.0) * 0.75;
+        float diagShine = smoothstep(0.025, 0.0, abs((vObjPos.x * 0.7 - vObjPos.y) - 0.02)) * 0.14;
+        float alpha = clamp(0.05 + spec * 0.45 + diagShine, 0.04, 0.34);
+        vec3 col = mix(vec3(0.86, 0.93, 1.0), vec3(1.0), spec + diagShine);
+        gl_FragColor = vec4(col, alpha);
+        return;
+      }
+
+      // 4: Default soft matte / plushie / tongue / chew stick / frame
+      float grain = noise3(vObjPos * 28.0);
+      albedo *= (0.95 + 0.09 * grain);
+      float ndl = clamp((dot(N, Lkey) + 0.25) / 1.25, 0.0, 1.0);
+      float ndlF = clamp((dot(N, Lfill) + 0.35) / 1.35, 0.0, 1.0);
+      vec3 hemi = mix(uAmbGround, uAmbSky, N.y * 0.5 + 0.5);
+      vec3 H = normalize(Lkey + V);
+      float spec = pow(max(dot(N, H), 0.0), 28.0) * 0.10;
+      vec3 col = albedo * (hemi * 0.48 + uKeyCol * ndl * 0.64 + uFillCol * ndlF * 0.20) + uKeyCol * spec;
+      gl_FragColor = vec4(filmic(col), uAlpha);
+    }
+  `;
+
+  function compileShader(type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+      console.error('Shader compile error:', gl.getShaderInfoLog(s));
+    }
+    return s;
+  }
+
+  const prog = gl.createProgram();
+  gl.attachShader(prog, compileShader(gl.VERTEX_SHADER, VS_MAIN));
+  gl.attachShader(prog, compileShader(gl.FRAGMENT_SHADER, FS_MAIN));
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+    console.error('Program link error:', gl.getProgramInfoLog(prog));
+  }
+  gl.useProgram(prog);
+
+  const loc = {
+    aPos: gl.getAttribLocation(prog, 'aPos'),
+    aNorm: gl.getAttribLocation(prog, 'aNorm'),
+    aUV: gl.getAttribLocation(prog, 'aUV'),
+    aColor: gl.getAttribLocation(prog, 'aColor'),
+    uProj: gl.getUniformLocation(prog, 'uProj'),
+    uView: gl.getUniformLocation(prog, 'uView'),
+    uModel: gl.getUniformLocation(prog, 'uModel'),
+    uNormalMat: gl.getUniformLocation(prog, 'uNormalMat'),
+    uCamPos: gl.getUniformLocation(prog, 'uCamPos'),
+    uBaseColor: gl.getUniformLocation(prog, 'uBaseColor'),
+    uTipColor: gl.getUniformLocation(prog, 'uTipColor'),
+    uMatType: gl.getUniformLocation(prog, 'uMatType'),
+    uFurScale: gl.getUniformLocation(prog, 'uFurScale'),
+    uAlpha: gl.getUniformLocation(prog, 'uAlpha'),
+    uUseTex: gl.getUniformLocation(prog, 'uUseTex'),
+    uTex: gl.getUniformLocation(prog, 'uTex'),
+    uKeyDir: gl.getUniformLocation(prog, 'uKeyDir'),
+    uKeyCol: gl.getUniformLocation(prog, 'uKeyCol'),
+    uFillDir: gl.getUniformLocation(prog, 'uFillDir'),
+    uFillCol: gl.getUniformLocation(prog, 'uFillCol'),
+    uRimDir: gl.getUniformLocation(prog, 'uRimDir'),
+    uRimCol: gl.getUniformLocation(prog, 'uRimCol'),
+    uAmbSky: gl.getUniformLocation(prog, 'uAmbSky'),
+    uAmbGround: gl.getUniformLocation(prog, 'uAmbGround'),
+    uShadowPos0: gl.getUniformLocation(prog, 'uShadowPos0'),
+    uShadowPos1: gl.getUniformLocation(prog, 'uShadowPos1'),
+    uBgColor: gl.getUniformLocation(prog, 'uBgColor'),
+    uCushionOn: gl.getUniformLocation(prog, 'uCushionOn'),
+  };
+
+  // =========================================================================
+  // 3. Procedural Canvas2D Texture for Coral Mario & Boo Sweater (WA0039)
+  // =========================================================================
+  function createBooSweaterTexture() {
+    const c = document.createElement('canvas');
+    c.width = 512; c.height = 512;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#e45c52';
+    ctx.fillRect(0, 0, 512, 512);
+    ctx.fillStyle = 'rgba(255,255,255,0.04)';
+    for (let y = 0; y < 512; y += 6) ctx.fillRect(0, y, 512, 2);
+
+    function drawBoo(cx, cy, r, rot) {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(rot);
+      ctx.fillStyle = '#f8f7f5';
+      ctx.strokeStyle = '#1f1a1c';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(-r * 0.85, r * 0.1, r * 0.35, r * 0.2, -0.4, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(r * 0.85, -r * 0.15, r * 0.35, r * 0.2, 0.4, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#1f1a1c';
+      ctx.beginPath();
+      ctx.ellipse(-r * 0.26, -r * 0.22, r * 0.11, r * 0.17, 0.15, 0, Math.PI * 2);
+      ctx.ellipse(r * 0.16, -r * 0.22, r * 0.11, r * 0.17, -0.15, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#a8222f';
+      ctx.beginPath();
+      ctx.arc(-r * 0.04, r * 0.22, r * 0.34, 0, Math.PI);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(-r*0.24, r*0.22); ctx.lineTo(-r*0.14, r*0.36); ctx.lineTo(-r*0.05, r*0.22);
+      ctx.moveTo(r*0.06, r*0.22); ctx.lineTo(r*0.15, r*0.36); ctx.lineTo(r*0.24, r*0.22);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawPipeAndCap(cx, cy, s, rot) {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(rot);
+      ctx.fillStyle = '#5c7e38';
+      ctx.strokeStyle = '#1f1a1c';
+      ctx.lineWidth = 3.5;
+      ctx.fillRect(-s * 0.42, 0, s * 0.84, s * 0.85);
+      ctx.strokeRect(-s * 0.42, 0, s * 0.84, s * 0.85);
+      ctx.fillRect(-s * 0.55, -s * 0.25, s * 1.1, s * 0.32);
+      ctx.strokeRect(-s * 0.55, -s * 0.25, s * 1.1, s * 0.32);
+      ctx.fillStyle = '#c82b2e';
+      ctx.beginPath();
+      ctx.arc(0, -s * 0.52, s * 0.42, Math.PI, 0);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(0, -s * 0.66, s * 0.14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    [
+      [75, 80, 34, -0.25], [220, 70, 36, 0.3], [385, 95, 32, -0.15],
+      [135, 220, 38, 0.2], [310, 210, 35, -0.35], [460, 240, 32, 0.25],
+      [70, 370, 35, -0.2], [235, 360, 38, 0.15], [405, 385, 34, -0.3],
+      [155, 470, 30, 0.3], [330, 475, 32, -0.1]
+    ].forEach(([x, y, r, rot]) => drawBoo(x, y, r, rot));
+
+    [
+      [155, 125, 28, -0.5], [305, 115, 26, 0.4], [455, 145, 26, -0.3],
+      [50, 240, 28, 0.6], [225, 275, 27, -0.4], [390, 290, 28, 0.5],
+      [140, 405, 26, -0.3], [320, 415, 28, 0.45], [465, 445, 25, -0.5]
+    ].forEach(([x, y, s, rot]) => drawPipeAndCap(x, y, s, rot));
+
+    const tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, c);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    return tex;
+  }
+
+  const booTexture = createBooSweaterTexture();
+
+  // =========================================================================
+  // 4. Sculpted Procedural Mesh Builder (Soft Rounded Wool/Curl Clouds!)
+  // =========================================================================
+  class MeshBuilder {
+    constructor() {
+      this.pos = [];
+      this.norm = [];
+      this.uv = [];
+      this.col = [];
+      this.idx = [];
+    }
+
+    addSculptedSphere({
+      rx = 0.2, ry = 0.2, rz = 0.2,
+      cx = 0, cy = 0, cz = 0,
+      segU = 22, segV = 16,
+      furNoise = 0.0,
+      freq = 6.0,
+      seed = 1.0,
+      colorFn = null,
+      deformFn = null,
+      rotX = 0, rotY = 0, rotZ = 0
+    } = {}) {
+      const baseIndex = this.pos.length / 3;
+      const startIdx = this.idx.length;
+      const sx = Math.sin(rotX), cxR = Math.cos(rotX);
+      const sy = Math.sin(rotY), cyR = Math.cos(rotY);
+      const sz = Math.sin(rotZ), czR = Math.cos(rotZ);
+
+      const rotVec = (x, y, z) => {
+        let x1 = x * czR - y * sz, y1 = x * sz + y * czR, z1 = z;
+        let y2 = y1 * cxR - z1 * sx, z2 = y1 * sx + z1 * cxR, x2 = x1;
+        let x3 = x2 * cyR + z2 * sy, z3 = -x2 * sy + z2 * cyR, y3 = y2;
+        return [x3, y3, z3];
+      };
+
+      const pts = [];
+      for (let iv = 0; iv <= segV; iv++) {
+        const v = iv / segV;
+        const phi = v * Math.PI;
+        const sp = Math.sin(phi), cp = Math.cos(phi);
+        for (let iu = 0; iu <= segU; iu++) {
+          const u = iu / segU;
+          const theta = u * Math.PI * 2;
+          const st = Math.sin(theta), ct = Math.cos(theta);
+          let nx = sp * ct, ny = cp, nz = sp * st;
+          let px = nx * rx, py = ny * ry, pz = nz * rz;
+
+          if (deformFn) {
+            const d = deformFn(px, py, pz, u, v, nx, ny, nz);
+            px = d[0]; py = d[1]; pz = d[2];
+          }
+          if (furNoise > 0) {
+            const w1 = Math.sin(nx * freq + seed * 3.1) * Math.cos(ny * freq * 1.15 - seed * 1.7) * Math.sin(nz * freq + seed * 2.3);
+            const w2 = Math.sin((nx - nz) * freq * 1.65 + seed * 4.7) * 0.4;
+            const bump = (w1 + w2) * furNoise;
+            px += nx * bump;
+            py += ny * bump;
+            pz += nz * bump;
+          }
+
+          const rp = rotVec(px, py, pz);
+          pts.push([rp[0] + cx, rp[1] + cy, rp[2] + cz, u, v, nx, ny, nz]);
+        }
+      }
+
+      const row = segU + 1;
+      for (let i = 0; i < pts.length; i++) {
+        const p = pts[i];
+        this.pos.push(p[0], p[1], p[2]);
+        this.uv.push(p[3], p[4]);
+        const c = colorFn ? colorFn(p[0], p[1], p[2], p[5], p[6], p[7]) : [1, 1, 1];
+        this.col.push(c[0], c[1], c[2]);
+        this.norm.push(0, 0, 0);
+      }
+
+      for (let iv = 0; iv < segV; iv++) {
+        for (let iu = 0; iu < segU; iu++) {
+          const a = baseIndex + iv * row + iu;
+          const b = a + 1;
+          const c = a + row;
+          const d = c + 1;
+          this.idx.push(a, b, c, b, d, c);
+        }
+      }
+
+      this.recomputeNormalsRange(baseIndex, pts.length, startIdx);
+    }
+
+    // Soft, rounded, pillowy wool-curl tuft (outward normals verified)
+    addSoftCurl({
+      ox = 0, oy = 0, oz = 0,
+      dx = 0, dy = -1, dz = 0,
+      cx = 0, cy = -0.02, cz = 0.02,
+      length = 0.11,
+      radius = 0.044,
+      color = [1.0, 0.98, 0.94],
+      tipColor = [0.96, 0.89, 0.79],
+      segs = 6
+    } = {}) {
+      const baseIndex = this.pos.length / 3;
+      const startIdx = this.idx.length;
+      const dl = Math.hypot(dx, dy, dz) || 1;
+      const fx = dx / dl, fy = dy / dl, fz = dz / dl;
+      let upx = 0, upy = 1, upz = 0;
+      if (Math.abs(fy) > 0.92) { upx = 1; upy = 0; upz = 0; }
+      let rx = fy * upz - fz * upy, ry = fz * upx - fx * upz, rz = fx * upy - fy * upx;
+      const rl = Math.hypot(rx, ry, rz) || 1;
+      rx /= rl; ry /= rl; rz /= rl;
+      const bx = ry * fz - rz * fy, by = rz * fx - rx * fz, bz = rx * fy - ry * fx;
+
+      const sides = 8;
+      for (let i = 0; i <= segs; i++) {
+        const t = i / segs;
+        const sinCap = Math.sin(t * Math.PI);
+        const rProfile = Math.pow(Math.max(0.001, sinCap), 0.52) * (0.80 + 0.25 * Math.sin(t * Math.PI * 0.85));
+        const r = i === 0 || i === segs ? 0.002 : radius * rProfile;
+        const bend = t * t;
+        const px = ox + fx * length * t + cx * bend;
+        const py = oy + fy * length * t + cy * bend;
+        const pz = oz + fz * length * t + cz * bend;
+        const cMix = [
+          lerp(color[0], tipColor[0], t),
+          lerp(color[1], tipColor[1], t),
+          lerp(color[2], tipColor[2], t)
+        ];
+
+        for (let s = 0; s <= sides; s++) {
+          const ang = (s / sides) * Math.PI * 2;
+          const ca = Math.cos(ang), sa = Math.sin(ang);
+          const vx = px + (rx * ca * r + bx * sa * r * 0.84);
+          const vy = py + (ry * ca * r + by * sa * r * 0.84);
+          const vz = pz + (rz * ca * r + bz * sa * r * 0.84);
+          this.pos.push(vx, vy, vz);
+          this.norm.push(0, 0, 0);
+          this.uv.push(s / sides, t);
+          this.col.push(cMix[0], cMix[1], cMix[2]);
+        }
+      }
+
+      const ring = sides + 1;
+      for (let i = 0; i < segs; i++) {
+        for (let s = 0; s < sides; s++) {
+          const a = baseIndex + i * ring + s;
+          const b = a + 1;
+          const c = a + ring;
+          const d = c + 1;
+          this.idx.push(a, c, b, b, c, d);
+        }
+      }
+      this.recomputeNormalsRange(baseIndex, (segs + 1) * ring, startIdx);
+    }
+
+    addTube({
+      spineFn,
+      radiusFn,
+      segL = 16,
+      segR = 18,
+      capStart = true,
+      capEnd = true,
+      colorFn = null,
+      uScale = 1,
+      vScale = 1
+    }) {
+      const baseIndex = this.pos.length / 3;
+      const startIdx = this.idx.length;
+      const pts = [];
+      for (let i = 0; i <= segL; i++) pts.push(spineFn(i / segL));
+
+      for (let i = 0; i <= segL; i++) {
+        const t = i / segL;
+        const p = pts[i];
+        const prev = pts[Math.max(0, i - 1)];
+        const next = pts[Math.min(segL, i + 1)];
+        let tx = next[0] - prev[0], ty = next[1] - prev[1], tz = next[2] - prev[2];
+        const tl = Math.hypot(tx, ty, tz) || 1;
+        tx /= tl; ty /= tl; tz /= tl;
+
+        let upx = 0, upy = 1, upz = 0;
+        if (Math.abs(ty) > 0.92) { upx = 0; upy = 0; upz = 1; }
+        let rx = ty * upz - tz * upy, ry = tz * upx - tx * upz, rz = tx * upy - ty * upx;
+        const rl = Math.hypot(rx, ry, rz) || 1;
+        rx /= rl; ry /= rl; rz /= rl;
+        const bx = ry * tz - rz * ty, by = rz * tx - rx * tz, bz = rx * ty - ry * tx;
+
+        const rad = radiusFn(t);
+        const radX = Array.isArray(rad) ? rad[0] : rad;
+        const radY = Array.isArray(rad) ? rad[1] : rad;
+
+        for (let j = 0; j <= segR; j++) {
+          const u = j / segR;
+          const ang = u * Math.PI * 2;
+          const ca = Math.cos(ang), sa = Math.sin(ang);
+          const vx = p[0] + rx * ca * radX + bx * sa * radY;
+          const vy = p[1] + ry * ca * radX + by * sa * radY;
+          const vz = p[2] + rz * ca * radX + bz * sa * radY;
+          this.pos.push(vx, vy, vz);
+          this.norm.push(0, 0, 0);
+          this.uv.push(u * uScale, t * vScale);
+          const c = colorFn ? colorFn(t, u, vx, vy, vz) : [1, 1, 1];
+          this.col.push(c[0], c[1], c[2]);
+        }
+      }
+
+      const ring = segR + 1;
+      for (let i = 0; i < segL; i++) {
+        for (let j = 0; j < segR; j++) {
+          const a = baseIndex + i * ring + j;
+          const b = a + 1;
+          const c = a + ring;
+          const d = c + 1;
+          this.idx.push(a, c, b, b, c, d);
+        }
+      }
+
+      if (capStart) {
+        const ci = this.pos.length / 3;
+        const p0 = pts[0];
+        this.pos.push(p0[0], p0[1], p0[2]);
+        this.norm.push(0, 0, 0);
+        this.uv.push(0.5, 0);
+        const c = colorFn ? colorFn(0, 0, p0[0], p0[1], p0[2]) : [1, 1, 1];
+        this.col.push(c[0], c[1], c[2]);
+        for (let j = 0; j < segR; j++) this.idx.push(ci, baseIndex + j, baseIndex + j + 1);
+      }
+      if (capEnd) {
+        const ci = this.pos.length / 3;
+        const p1 = pts[segL];
+        this.pos.push(p1[0], p1[1], p1[2]);
+        this.norm.push(0, 0, 0);
+        this.uv.push(0.5, 1);
+        const c = colorFn ? colorFn(1, 0, p1[0], p1[1], p1[2]) : [1, 1, 1];
+        this.col.push(c[0], c[1], c[2]);
+        const endRing = baseIndex + segL * ring;
+        for (let j = 0; j < segR; j++) this.idx.push(ci, endRing + j + 1, endRing + j);
+      }
+
+      this.recomputeNormalsRange(baseIndex, this.pos.length / 3 - baseIndex, startIdx);
+    }
+
+    // Clean true rounded-square plush floor cushion (WA0033!)
+    addSquarePillow({ sx = 0.72, sy = 0.11, sz = 0.68, cx = 0, cy = 0, cz = 0, rotY = 0, color = [0.60, 0.12, 0.24] }) {
+      this.addSculptedSphere({
+        rx: 1.0, ry: 1.0, rz: 1.0,
+        cx, cy, cz, rotY,
+        segU: 32, segV: 20,
+        colorFn: () => color,
+        deformFn: (x, y, z, u, v, nx, ny, nz) => {
+          // Map unit sphere cleanly onto a plump rounded-square pillow (L6 norm on XZ)
+          const rHoriz = Math.hypot(nx, nz);
+          let px = nx, pz = nz;
+          if (rHoriz > 1e-4) {
+            const c = nx / rHoriz, s = nz / rHoriz;
+            // Superellipse squircle radius in XZ plane (rounded corners, straight plush edges!)
+            const sqR = 1.0 / Math.pow(Math.pow(Math.abs(c), 5.0) + Math.pow(Math.abs(s), 5.0), 1.0 / 5.0);
+            px = nx * sqR;
+            pz = nz * sqR;
+          }
+          // Plump pillow bulge in center, gentle seam edge around perimeter
+          const edgePinch = 1.0 - 0.12 * Math.pow(rHoriz, 2.5);
+          const puff = 1.0 + 0.10 * (1.0 - rHoriz * rHoriz);
+          return [px * sx, ny * sy * edgePinch * puff, pz * sz];
+        }
+      });
+    }
+
+    addDisc({ r = 2.6, seg = 56, cy = 0, color = [1, 1, 1] }) {
+      const baseIndex = this.pos.length / 3;
+      this.pos.push(0, cy, 0);
+      this.norm.push(0, 1, 0);
+      this.uv.push(0.5, 0.5);
+      this.col.push(color[0], color[1], color[2]);
+      for (let i = 0; i <= seg; i++) {
+        const a = (i / seg) * Math.PI * 2;
+        this.pos.push(Math.cos(a) * r, cy, Math.sin(a) * r);
+        this.norm.push(0, 1, 0);
+        this.uv.push(0.5 + 0.5 * Math.cos(a), 0.5 + 0.5 * Math.sin(a));
+        this.col.push(color[0], color[1], color[2]);
+      }
+      for (let i = 1; i <= seg; i++) this.idx.push(baseIndex, baseIndex + i + 1, baseIndex + i);
+    }
+
+    recomputeNormalsRange(vStart, vCount, iStart) {
+      const pos = this.pos, norm = this.norm, idx = this.idx;
+      for (let i = iStart; i < idx.length; i += 3) {
+        const ia = idx[i] * 3, ib = idx[i + 1] * 3, ic = idx[i + 2] * 3;
+        const abx = pos[ib] - pos[ia], aby = pos[ib + 1] - pos[ia + 1], abz = pos[ib + 2] - pos[ia + 2];
+        const acx = pos[ic] - pos[ia], acy = pos[ic + 1] - pos[ia + 1], acz = pos[ic + 2] - pos[ia + 2];
+        const nx = aby * acz - abz * acy;
+        const ny = abz * acx - abx * acz;
+        const nz = abx * acy - aby * acx;
+        norm[ia] += nx; norm[ia + 1] += ny; norm[ia + 2] += nz;
+        norm[ib] += nx; norm[ib + 1] += ny; norm[ib + 2] += nz;
+        norm[ic] += nx; norm[ic + 1] += ny; norm[ic + 2] += nz;
+      }
+      const end = (vStart + vCount) * 3;
+      for (let v = vStart * 3; v < end; v += 3) {
+        const l = Math.hypot(norm[v], norm[v + 1], norm[v + 2]) || 1;
+        norm[v] /= l; norm[v + 1] /= l; norm[v + 2] /= l;
+      }
+    }
+
+    upload() {
+      const mkBuf = (target, arr) => {
+        const b = gl.createBuffer();
+        gl.bindBuffer(target, b);
+        gl.bufferData(target, arr, gl.STATIC_DRAW);
+        return b;
+      };
+      return {
+        posBuf: mkBuf(gl.ARRAY_BUFFER, new Float32Array(this.pos)),
+        normBuf: mkBuf(gl.ARRAY_BUFFER, new Float32Array(this.norm)),
+        uvBuf: mkBuf(gl.ARRAY_BUFFER, new Float32Array(this.uv)),
+        colBuf: mkBuf(gl.ARRAY_BUFFER, new Float32Array(this.col)),
+        idxBuf: mkBuf(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(this.idx)),
+        count: this.idx.length
+      };
+    }
+  }
+
+  // =========================================================================
+  // 5. Sculpting Our Beloved Fluffy Doggy & Wardrobe (Soft Cloud-Wool Style!)
+  // =========================================================================
+  const rand = mulberry32(20120920);
+
+  // Scatter soft rounded curly wool puffs across an ellipsoid
+  function scatterCurls(mb, {
+    count, rx, ry, rz, cx = 0, cy = 0, cz = 0,
+    minY = -1, maxY = 1, minZ = -1, maxZ = 1,
+    len = 0.095, rad = 0.044, droop = -0.7, outward = 0.45,
+    color = [1.0, 0.98, 0.94], tipColor = [0.95, 0.87, 0.76]
+  }) {
+    for (let i = 0; i < count; i++) {
+      const u = rand() * Math.PI * 2;
+      const v = lerp(minY, maxY, rand());
+      const rH = Math.sqrt(Math.max(0.01, 1 - v * v));
+      const nx = rH * Math.cos(u), ny = v, nz = rH * Math.sin(u);
+      if (nz < minZ || nz > maxZ) continue;
+      mb.addSoftCurl({
+        ox: cx + nx * rx * 0.88,
+        oy: cy + ny * ry * 0.88,
+        oz: cz + nz * rz * 0.88,
+        dx: nx * outward + (rand() - 0.5) * 0.25,
+        dy: ny * 0.2 + droop,
+        dz: nz * outward - 0.1 + (rand() - 0.5) * 0.2,
+        cx: nx * 0.02, cy: -0.02, cz: nz * 0.02,
+        length: len * (0.85 + rand() * 0.3),
+        radius: rad * (0.82 + rand() * 0.34),
+        color, tipColor, segs: 5
+      });
+    }
+  }
+
+  // --- 5A. TORSO BASE (Always visible) + TORSO BODY CURLS (Hidden under shirts!) + NECK RUFF ---
+  function buildTorsoBaseMesh() {
+    const mb = new MeshBuilder();
+    mb.addSculptedSphere({
+      rx: 0.225, ry: 0.22, rz: 0.39,
+      cx: 0, cy: 0.02, cz: -0.04,
+      segU: 28, segV: 20,
+      furNoise: 0.018, freq: 7.2, seed: 2.1,
+      colorFn: (x, y, z) => {
+        const backWarm = smoothstepJS(-0.02, 0.22, y) * smoothstepJS(0.28, -0.25, z);
+        return [lerp(1.0, 0.96, backWarm), lerp(0.99, 0.88, backWarm), lerp(0.96, 0.77, backWarm)];
+      },
+      deformFn: (x, y, z) => {
+        const chest = Math.exp(-Math.pow((z - 0.22) * 3.0, 2));
+        const waist = 1.0 - 0.05 * Math.exp(-Math.pow((z + 0.06) * 4.5, 2));
+        return [x * waist * (1 + chest * 0.07), y * (1 + chest * 0.07) - chest * 0.015, z];
+      }
+    });
+    // Neck ruff base (connects chest smoothly to head)
+    mb.addSculptedSphere({
+      rx: 0.175, ry: 0.17, rz: 0.17,
+      cx: 0, cy: 0.16, cz: 0.25,
+      segU: 20, segV: 14,
+      furNoise: 0.018, freq: 8.0, seed: 5.4,
+      colorFn: () => [1.0, 0.98, 0.95]
+    });
+    // Rounded fluffy haunches
+    for (const s of [-1, 1]) {
+      mb.addSculptedSphere({
+        rx: 0.135, ry: 0.165, rz: 0.165,
+        cx: s * 0.128, cy: -0.02, cz: -0.29,
+        segU: 18, segV: 14,
+        furNoise: 0.016, freq: 7.0, seed: 3.3 + s,
+        colorFn: () => [0.98, 0.92, 0.84]
+      });
+    }
+    return mb.upload();
+  }
+
+  function buildTorsoCurlsMesh() {
+    const mb = new MeshBuilder();
+    scatterCurls(mb, {
+      count: 66, rx: 0.225, ry: 0.215, rz: 0.38, cx: 0, cy: 0.02, cz: -0.04,
+      minY: -0.5, maxY: 0.88,
+      len: 0.105, rad: 0.052, droop: -0.82, outward: 0.45,
+      color: [1.0, 0.98, 0.94], tipColor: [0.95, 0.86, 0.75]
+    });
+    // Extra fluffy chest cloud curls
+    scatterCurls(mb, {
+      count: 20, rx: 0.175, ry: 0.17, rz: 0.16, cx: 0, cy: 0.10, cz: 0.27,
+      minY: -0.65, maxY: 0.45, minZ: 0.05, maxZ: 1.0,
+      len: 0.11, rad: 0.050, droop: -0.88, outward: 0.5,
+      color: [1.0, 0.99, 0.96], tipColor: [0.96, 0.90, 0.81]
+    });
+    return mb.upload();
+  }
+
+  // --- 5B. HEAD MESH (Soft, Round, Pillowy Teddy-Bear Maltipoo Face!) ---
+  function buildHeadMesh() {
+    const mb = new MeshBuilder();
+    // Main fluffy rounded cranium (WA0022, WA0023, WA0036, WA0039)
+    mb.addSculptedSphere({
+      rx: 0.255, ry: 0.238, rz: 0.242,
+      cx: 0, cy: 0.032, cz: 0.01,
+      segU: 30, segV: 22,
+      furNoise: 0.016, freq: 7.5, seed: 1.4,
+      colorFn: (x, y) => {
+        const topBright = smoothstepJS(0.06, 0.24, y);
+        return [lerp(0.98, 1.01, topBright), lerp(0.94, 1.0, topBright), lerp(0.88, 0.97, topBright)];
+      },
+      deformFn: (x, y, z) => {
+        // Gentle eye-socket nestling
+        const eyeL = Math.exp(-((x + 0.108)**2 + (y - 0.056)**2 + (z - 0.195)**2) * 56.0);
+        const eyeR = Math.exp(-((x - 0.108)**2 + (y - 0.056)**2 + (z - 0.195)**2) * 56.0);
+        return [x, y, z - (eyeL + eyeR) * 0.028];
+      }
+    });
+
+    // Soft parted wavy bangs across forehead (rounded billowing puffs, ZERO spikes!)
+    for (const s of [-1, 1]) {
+      // Top parted crown cloud
+      mb.addSculptedSphere({
+        rx: 0.145, ry: 0.095, rz: 0.145,
+        cx: s * 0.092, cy: 0.205, cz: 0.04,
+        rotZ: -s * 0.24,
+        segU: 18, segV: 14,
+        furNoise: 0.014, freq: 9.0, seed: 2.8 + s,
+        colorFn: () => [1.01, 1.0, 0.97]
+      });
+      // Soft side-swept forehead bangs framing eyes (WA0022, WA0036)
+      for (let i = 0; i < 4; i++) {
+        const t = i / 3;
+        mb.addSoftCurl({
+          ox: s * (0.045 + t * 0.055),
+          oy: 0.22 - t * 0.02,
+          oz: 0.13 - t * 0.06,
+          dx: s * 0.88, dy: -0.45, dz: 0.28 - t * 0.28,
+          cx: s * 0.028, cy: -0.025, cz: 0.01,
+          length: 0.125, radius: 0.044,
+          color: [1.01, 1.0, 0.97], tipColor: [0.97, 0.91, 0.83], segs: 5
+        });
+      }
+    }
+
+    // Warm toasted-biscuit upper snout bridge (WA0022, WA0023, WA0044)
+    mb.addSculptedSphere({
+      rx: 0.112, ry: 0.082, rz: 0.122,
+      cx: 0, cy: -0.012, cz: 0.195,
+      segU: 20, segV: 14,
+      furNoise: 0.012, freq: 10.0, seed: 7.2,
+      colorFn: () => [0.97, 0.88, 0.76]
+    });
+
+    // Plump soft mustache / whisker pillows flanking the nose
+    for (const s of [-1, 1]) {
+      mb.addSculptedSphere({
+        rx: 0.098, ry: 0.084, rz: 0.098,
+        cx: s * 0.082, cy: -0.052, cz: 0.205,
+        segU: 18, segV: 14,
+        furNoise: 0.014, freq: 10.5, seed: 4.5 + s,
+        colorFn: () => [0.97, 0.89, 0.78]
+      });
+      // Soft pillowy cheek fluff
+      mb.addSculptedSphere({
+        rx: 0.135, ry: 0.115, rz: 0.125,
+        cx: s * 0.155, cy: -0.055, cz: 0.088,
+        segU: 18, segV: 14,
+        furNoise: 0.017, freq: 8.5, seed: 8.1 + s,
+        colorFn: () => [0.99, 0.96, 0.90]
+      });
+      // Soft curved mustache curls sweeping gently outward
+      for (let i = 0; i < 3; i++) {
+        mb.addSoftCurl({
+          ox: s * (0.085 + i * 0.018),
+          oy: -0.048 - i * 0.014,
+          oz: 0.215 - i * 0.022,
+          dx: s * 0.92, dy: -0.32, dz: 0.22 - i * 0.1,
+          cx: s * 0.02, cy: -0.02, cz: 0.01,
+          length: 0.095, radius: 0.036,
+          color: [0.97, 0.90, 0.80], tipColor: [0.99, 0.95, 0.89], segs: 5
+        });
+      }
+    }
+
+    // Soft fluffy chin beard
+    mb.addSculptedSphere({
+      rx: 0.096, ry: 0.075, rz: 0.090,
+      cx: 0, cy: -0.138, cz: 0.168,
+      segU: 18, segV: 12,
+      furNoise: 0.014, freq: 10.0, seed: 9.3,
+      colorFn: () => [0.94, 0.85, 0.73]
+    });
+    // Soft neck-beard curls spilling gently under chin (sits cleanly ABOVE any sweater collar!)
+    for (let i = -2; i <= 2; i++) {
+      mb.addSoftCurl({
+        ox: i * 0.048, oy: -0.155, oz: 0.145 - Math.abs(i) * 0.02,
+        dx: i * 0.18, dy: -0.92, dz: 0.25,
+        cx: 0, cy: -0.015, cz: 0.02,
+        length: 0.095, radius: 0.042,
+        color: [0.98, 0.93, 0.85], tipColor: [0.95, 0.87, 0.76], segs: 5
+      });
+    }
+
+    // Soft curls on back of head (WA0021!)
+    scatterCurls(mb, {
+      count: 26, rx: 0.24, ry: 0.22, rz: 0.23, cx: 0, cy: 0.03, cz: -0.01,
+      minY: -0.5, maxY: 0.85, minZ: -1.0, maxZ: 0.12,
+      len: 0.09, rad: 0.046, droop: -0.82, outward: 0.42,
+      color: [1.0, 0.98, 0.94], tipColor: [0.95, 0.88, 0.78]
+    });
+
+    return mb.upload();
+  }
+
+  // --- 5C. SOFT PLUSH FLOPPY EARS (Wavy rounded Maltipoo curls, ZERO spikes!) ---
+  function buildEarMesh() {
+    const mb = new MeshBuilder();
+    // Soft rounded plush ear pad
+    mb.addSculptedSphere({
+      rx: 0.088, ry: 0.175, rz: 0.122,
+      cx: 0.055, cy: -0.145, cz: 0.0,
+      segU: 20, segV: 16,
+      furNoise: 0.016, freq: 8.5, seed: 6.2,
+      colorFn: (x, y) => {
+        const tip = smoothstepJS(0.0, -0.28, y);
+        return [lerp(1.0, 0.94, tip), lerp(0.97, 0.85, tip), lerp(0.91, 0.72, tip)];
+      },
+      deformFn: (x, y, z) => {
+        const t = clamp((-y) / 0.30, 0, 1);
+        const flare = 0.68 + t * 0.48;
+        return [x * (0.78 + t * 0.32) + t * 0.042, y, z * flare];
+      }
+    });
+    // Soft wavy rounded ear curl clusters framing the cheek & flaring softly at the bottom
+    for (let i = 0; i < 11; i++) {
+      const a = (i / 10) * Math.PI * 1.25 - 0.62;
+      const zOff = Math.sin(a) * 0.092;
+      const yOff = -0.04 - (i % 3) * 0.068;
+      const xOff = 0.062 + Math.cos(a) * 0.032;
+      mb.addSoftCurl({
+        ox: xOff, oy: yOff, oz: zOff,
+        dx: 0.34, dy: -0.94, dz: zOff * 1.1,
+        cx: 0.035, cy: -0.025, cz: zOff * 0.18,
+        length: 0.145 + (i % 2) * 0.028,
+        radius: 0.046,
+        color: [0.99, 0.95, 0.88],
+        tipColor: [0.93, 0.82, 0.68],
+        segs: 6
+      });
+    }
+    return mb.upload();
+  }
+
+  // --- 5D. HEART-SHAPED WET NOSE MESH (Tribute to WA0027!) ---
+  function buildNoseMesh() {
+    const mb = new MeshBuilder();
+    mb.addSculptedSphere({
+      rx: 0.062, ry: 0.046, rz: 0.042,
+      cx: 0, cy: 0, cz: 0,
+      segU: 24, segV: 18,
+      deformFn: (x, y, z) => {
+        const nx = x / 0.062, ny = y / 0.046, nz = z / 0.042;
+        const heartW = 1.0 + ny * 0.16 - (ny < 0 ? Math.abs(ny) * 0.22 : 0);
+        const cleft = Math.exp(-nx * nx * 28.0) * (ny < 0.2 ? 0.008 : 0.004);
+        const nL = Math.exp(-((nx + 0.42)**2 * 16.0 + (ny + 0.14)**2 * 22.0)) * (nz > 0.2 ? 0.015 : 0);
+        const nR = Math.exp(-((nx - 0.42)**2 * 16.0 + (ny + 0.14)**2 * 22.0)) * (nz > 0.2 ? 0.015 : 0);
+        return [x * heartW, y, z - cleft - nL - nR];
+      },
+      colorFn: (x, y, z) => {
+        const nx = x / 0.062, ny = y / 0.046, nz = z / 0.042;
+        const nL = Math.exp(-((nx + 0.42)**2 * 18.0 + (ny + 0.14)**2 * 24.0)) * (nz > 0.1 ? 1 : 0);
+        const nR = Math.exp(-((nx - 0.42)**2 * 18.0 + (ny + 0.14)**2 * 24.0)) * (nz > 0.1 ? 1 : 0);
+        const dark = 1.0 - clamp((nL + nR) * 0.85, 0, 0.85);
+        return [dark, dark, dark];
+      }
+    });
+    return mb.upload();
+  }
+
+  // --- 5E. EYES, EYELIDS, MOUTH & TONGUES ---
+  function buildEyeMesh() {
+    const mb = new MeshBuilder();
+    mb.addSculptedSphere({ rx: 0.052, ry: 0.052, rz: 0.048, segU: 22, segV: 18 });
+    return mb.upload();
+  }
+
+  function buildEyelidMesh() {
+    const mb = new MeshBuilder();
+    mb.addSculptedSphere({
+      rx: 0.057, ry: 0.057, rz: 0.054,
+      segU: 16, segV: 12,
+      deformFn: (x, y, z) => [x, Math.max(y, -0.005), z]
+    });
+    return mb.upload();
+  }
+
+  function buildMouthLipMesh() {
+    const mb = new MeshBuilder();
+    mb.addSculptedSphere({
+      rx: 0.050, ry: 0.021, rz: 0.034,
+      segU: 16, segV: 10,
+      colorFn: () => [0.22, 0.15, 0.14]
+    });
+    mb.addSculptedSphere({
+      rx: 0.022, ry: 0.009, rz: 0.014,
+      cx: 0, cy: 0.013, cz: 0.018,
+      segU: 12, segV: 8,
+      colorFn: () => [0.96, 0.94, 0.90]
+    });
+    return mb.upload();
+  }
+
+  function buildTonguePantMesh() {
+    const mb = new MeshBuilder();
+    mb.addTube({
+      spineFn: (t) => [0, -t * 0.082 - t * t * 0.035, t * 0.090 - t * t * 0.02],
+      radiusFn: (t) => [0.036 * Math.sin(clamp(t * 0.85 + 0.15, 0, 1) * Math.PI * 0.85), 0.014 * (1 - t * 0.25)],
+      segL: 12, segR: 12,
+      colorFn: (t, u) => {
+        const crease = Math.exp(-Math.pow(Math.sin(u * Math.PI * 2), 2) * 14);
+        return [1.0 - crease * 0.1, 0.94 - crease * 0.15, 0.96 - crease * 0.12];
+      }
+    });
+    return mb.upload();
+  }
+
+  function buildTongueBlepMesh() {
+    const mb = new MeshBuilder();
+    mb.addTube({
+      spineFn: (t) => [0, t * 0.072 + t * t * 0.025, 0.022 + Math.sin(t * Math.PI) * 0.052],
+      radiusFn: (t) => [0.032 * (1 - t * 0.35), 0.013 * (1 - t * 0.25)],
+      segL: 12, segR: 12,
+      colorFn: () => [1.0, 0.92, 0.94]
+    });
+    return mb.upload();
+  }
+
+  // --- 5F. FLUFFY LEG & PAW MESH (Plush wavy teddy-bear fur legs!) ---
+  function buildLegMesh(isBack) {
+    const mb = new MeshBuilder();
+    mb.addSculptedSphere({
+      rx: isBack ? 0.112 : 0.095,
+      ry: 0.158,
+      rz: isBack ? 0.120 : 0.098,
+      cx: 0, cy: -0.10, cz: 0,
+      segU: 20, segV: 14,
+      furNoise: 0.015, freq: 8.5, seed: isBack ? 11.2 : 14.7
+    });
+    // Organically wavy fluffy leg column (no separate bead dots!)
+    mb.addTube({
+      spineFn: (t) => [0, -0.14 - t * 0.28, isBack ? -0.02 + t * 0.035 : t * 0.015],
+      radiusFn: (t) => 0.088 - t * 0.008 + Math.sin(t * 10.5) * 0.009,
+      segL: 14, segR: 18,
+      colorFn: (t) => [lerp(1.0, 0.96, t), lerp(0.98, 0.93, t), lerp(0.94, 0.87, t)]
+    });
+    // Fluffy ankle cuff puff above paw
+    mb.addSculptedSphere({
+      rx: 0.086, ry: 0.072, rz: 0.088,
+      cx: 0, cy: -0.37, cz: 0.022,
+      segU: 16, segV: 12,
+      furNoise: 0.014, freq: 9.5, seed: 5.5,
+      colorFn: () => [0.98, 0.95, 0.89]
+    });
+    // Plump soft round paw
+    mb.addSculptedSphere({
+      rx: 0.088, ry: 0.058, rz: 0.112,
+      cx: 0, cy: -0.432, cz: 0.042,
+      segU: 18, segV: 14,
+      furNoise: 0.011, freq: 10.0, seed: 3.8,
+      deformFn: (x, y, z) => [x, Math.max(y, -0.048), z],
+      colorFn: () => [0.97, 0.94, 0.88]
+    });
+    return mb.upload();
+  }
+
+  // --- 5G. PLUMED CLOUD-FEATHERED TAIL MESH (WA0041, WA0025, WA0039!) ---
+  function buildTailMesh() {
+    const mb = new MeshBuilder();
+    for (let i = 0; i <= 9; i++) {
+      const t = i / 9;
+      const sy = t * 0.25 + Math.sin(t * Math.PI * 0.85) * 0.10;
+      const sz = -t * 0.25 + Math.pow(t, 2.2) * 0.28;
+      const r = 0.058 + Math.sin(t * Math.PI) * 0.034;
+      mb.addSculptedSphere({
+        rx: r * 1.05, ry: r, rz: r * 1.1,
+        cx: 0, cy: sy, cz: sz,
+        segU: 14, segV: 10,
+        furNoise: 0.012, freq: 9.0, seed: 2.0 + i,
+        colorFn: () => [lerp(0.99, 0.94, t), lerp(0.94, 0.83, t), lerp(0.86, 0.70, t)]
+      });
+      if (i >= 2) {
+        for (const side of [-1, 1]) {
+          mb.addSoftCurl({
+            ox: side * 0.022, oy: sy, oz: sz,
+            dx: side * 0.42, dy: -0.58 + t * 0.25, dz: -0.68 + t * 0.45,
+            cx: side * 0.025, cy: -0.03, cz: -0.02,
+            length: 0.125 + t * 0.03,
+            radius: 0.044,
+            color: [0.99, 0.93, 0.84],
+            tipColor: [0.93, 0.81, 0.66],
+            segs: 5
+          });
+        }
+      }
+    }
+    return mb.upload();
+  }
+
+  // --- 5H. FITTED 3D OUTFITS (Full Chest Coverage + Clean Snug Fit!) ---
+  function buildShirtShell({
+    zStart = -0.32, zEnd = 0.29,
+    collar = false, sleeves = true, trimColor = null
+  } = {}) {
+    const mb = new MeshBuilder();
+    // Main fitted torso wrap
+    mb.addTube({
+      spineFn: (t) => [0, 0.025 + t * 0.03, lerp(zStart, zEnd, t)],
+      radiusFn: (t) => {
+        const env = 0.95 + Math.sin(t * Math.PI) * 0.14;
+        return [0.244 * env, 0.238 * env];
+      },
+      segL: 20, segR: 28,
+      capStart: false, capEnd: false,
+      uScale: 2.0, vScale: 1.4,
+      colorFn: (t) => (trimColor && (t < 0.09 || t > 0.90)) ? trimColor : [1, 1, 1]
+    });
+    // Full front chest bib dome so sitting pose shows complete shirt across chest!
+    mb.addSculptedSphere({
+      rx: 0.236, ry: 0.230, rz: 0.145,
+      cx: 0, cy: 0.048, cz: zEnd - 0.03,
+      segU: 24, segV: 16,
+      colorFn: () => [1, 1, 1]
+    });
+
+    if (collar) {
+      mb.addTube({
+        spineFn: (t) => [0, 0.08 + t * 0.11, zEnd - 0.02 + t * 0.05],
+        radiusFn: (t) => [0.206 - t * 0.01, 0.196 - t * 0.01],
+        segL: 8, segR: 24,
+        capStart: false, capEnd: false,
+        uScale: 2.0, vScale: 0.5
+      });
+    }
+
+    if (sleeves) {
+      for (const s of [-1, 1]) {
+        mb.addTube({
+          spineFn: (t) => [s * (0.155 + t * 0.022), -0.05 - t * 0.115, 0.22 - t * 0.01],
+          radiusFn: (t) => 0.112 + t * 0.008,
+          segL: 6, segR: 16,
+          capStart: false, capEnd: false,
+          uScale: 1.0, vScale: 0.6,
+          colorFn: (t) => (trimColor && t > 0.72) ? trimColor : [1, 1, 1]
+        });
+      }
+    }
+    return mb.upload();
+  }
+
+  function buildMustardJacketMesh() {
+    const mb = new MeshBuilder();
+    mb.addTube({
+      spineFn: (t) => [0, 0.025 + t * 0.03, lerp(-0.33, 0.29, t)],
+      radiusFn: (t) => {
+        const env = 0.96 + Math.sin(t * Math.PI) * 0.14;
+        return [0.248 * env, 0.242 * env];
+      },
+      segL: 20, segR: 28,
+      capStart: false, capEnd: false,
+      colorFn: (t) => (t < 0.12 || t > 0.88) ? [0.14, 0.14, 0.16] : [0.92, 0.65, 0.20]
+    });
+    // Full front mustard chest bib
+    mb.addSculptedSphere({
+      rx: 0.240, ry: 0.232, rz: 0.145,
+      cx: 0, cy: 0.048, cz: 0.26,
+      segU: 24, segV: 16,
+      colorFn: (x, y) => y > 0.21 ? [0.14, 0.14, 0.16] : [0.92, 0.65, 0.20]
+    });
+    for (const s of [-1, 1]) {
+      mb.addTube({
+        spineFn: (t) => [s * (0.16 + t * 0.02), -0.05 - t * 0.12, 0.22],
+        radiusFn: () => 0.110,
+        segL: 6, segR: 16,
+        capStart: false, capEnd: false,
+        colorFn: (t) => t < 0.36 ? [0.14, 0.14, 0.16] : [0.04, 0.62, 0.78]
+      });
+    }
+    return mb.upload();
+  }
+
+  function buildHarnessMesh() {
+    const mb = new MeshBuilder();
+    mb.addTube({
+      spineFn: (t) => {
+        const a = t * Math.PI * 2;
+        return [Math.cos(a) * 0.232, 0.08 + Math.sin(a) * 0.205, 0.24 - Math.sin(a) * 0.08];
+      },
+      radiusFn: () => 0.032,
+      segL: 28, segR: 10
+    });
+    mb.addTube({
+      spineFn: (t) => {
+        const a = t * Math.PI * 2;
+        return [Math.cos(a) * 0.258, 0.02 + Math.sin(a) * 0.248, -0.02];
+      },
+      radiusFn: () => 0.030,
+      segL: 28, segR: 10
+    });
+    mb.addTube({
+      spineFn: (t) => [0, 0.274, lerp(-0.02, 0.18, t)],
+      radiusFn: () => [0.042, 0.022],
+      segL: 8, segR: 10
+    });
+    mb.addSculptedSphere({ rx: 0.082, ry: 0.075, rz: 0.055, cx: 0, cy: -0.08, cz: 0.29, segU: 14, segV: 10 });
+    return mb.upload();
+  }
+
+  // --- 5I. STYLISH GLASSES WITH PEACH ACCENT & BLACK STRAP (WA0044!) ---
+  function buildGlassesFrameMesh() {
+    const mb = new MeshBuilder();
+    const darkBrown = [0.22, 0.14, 0.11];
+    const peach = [0.96, 0.56, 0.45];
+    const cordBlack = [0.11, 0.11, 0.13];
+
+    for (const s of [-1, 1]) {
+      const cx = s * 0.114;
+      mb.addTube({
+        spineFn: (t) => {
+          const a = t * Math.PI * 2;
+          const ca = Math.cos(a), sa = Math.sin(a);
+          const rx = Math.sign(ca) * Math.pow(Math.abs(ca), 0.70) * 0.092;
+          const ry = Math.sign(sa) * Math.pow(Math.abs(sa), 0.70) * 0.070;
+          return [cx + rx, 0.058 + ry, 0.262 - Math.abs(rx) * 0.14];
+        },
+        radiusFn: () => 0.011,
+        segL: 28, segR: 8,
+        capStart: false, capEnd: false,
+        colorFn: () => darkBrown
+      });
+      mb.addTube({
+        spineFn: (t) => [
+          s * (0.208 + Math.sin(t * Math.PI * 0.7) * 0.052),
+          0.082 - t * t * 0.045,
+          0.248 - t * 0.34
+        ],
+        radiusFn: (t) => (t > 0.28 && t < 0.72) ? [0.010, 0.016] : [0.009, 0.011],
+        segL: 16, segR: 8,
+        colorFn: (t) => (t > 0.28 && t < 0.72) ? peach : darkBrown
+      });
+      mb.addTube({
+        spineFn: (t) => [
+          s * (0.250 - t * 0.045),
+          0.074 - t * 0.28,
+          0.145 - t * 0.09 + Math.sin(t * Math.PI) * 0.025
+        ],
+        radiusFn: () => 0.0055,
+        segL: 12, segR: 6,
+        colorFn: () => cordBlack
+      });
+    }
+    mb.addTube({
+      spineFn: (t) => [lerp(-0.028, 0.028, t), 0.078 + Math.sin(t * Math.PI) * 0.012, 0.266],
+      radiusFn: () => 0.010,
+      segL: 8, segR: 8,
+      colorFn: () => darkBrown
+    });
+    return mb.upload();
+  }
+
+  function buildGlassesLensMesh() {
+    const mb = new MeshBuilder();
+    for (const s of [-1, 1]) {
+      mb.addSculptedSphere({
+        rx: 0.085, ry: 0.062, rz: 0.004,
+        cx: s * 0.114, cy: 0.058, cz: 0.258,
+        segU: 16, segV: 10
+      });
+    }
+    return mb.upload();
+  }
+
+  // --- 5J. CLEAN STACKED MAROON CUSHIONS (WA0033!), POOH BEAR (WA0025!) & CHEW STICK (WA0029!) ---
+  function buildCushionsMesh() {
+    const mb = new MeshBuilder();
+    const maroon = [0.64, 0.12, 0.24];
+    const maroonDark = [0.54, 0.095, 0.20];
+    const whiteZip = [0.95, 0.94, 0.92];
+    const tagGreen = [0.88, 0.96, 0.88];
+
+    mb.addSquarePillow({ sx: 0.74, sy: 0.095, sz: 0.70, cx: 0, cy: 0.092, cz: -0.02, rotY: 0.0, color: maroonDark });
+    mb.addSquarePillow({ sx: 0.71, sy: 0.095, sz: 0.67, cx: 0.015, cy: 0.232, cz: 0.005, rotY: 0.07, color: maroon });
+
+    // Clean white zipper piping sitting flush along the front cushion seam
+    mb.addTube({
+      spineFn: (t) => [lerp(-0.52, 0.52, t), 0.092, 0.665],
+      radiusFn: () => 0.009,
+      segL: 12, segR: 6,
+      colorFn: () => whiteZip
+    });
+    mb.addTube({
+      spineFn: (t) => {
+        const x = lerp(-0.49, 0.49, t);
+        const z = 0.66;
+        const c = Math.cos(0.07), s = Math.sin(0.07);
+        return [x * c + z * s + 0.015, 0.232, -x * s + z * c + 0.005];
+      },
+      radiusFn: () => 0.009,
+      segL: 12, segR: 6,
+      colorFn: () => whiteZip
+    });
+    // Tiny cute corner care label tag attached cleanly to bottom-left corner
+    mb.addSculptedSphere({
+      rx: 0.030, ry: 0.010, rz: 0.038,
+      cx: -0.60, cy: 0.078, cz: 0.60,
+      segU: 8, segV: 6,
+      colorFn: () => tagGreen
+    });
+    return mb.upload();
+  }
+
+  function buildPoohPlushieMesh() {
+    const mb = new MeshBuilder();
+    const gold = [0.92, 0.72, 0.18];
+    const red = [0.80, 0.15, 0.17];
+    const dark = [0.14, 0.10, 0.09];
+
+    // Golden lower belly + crisp separate red t-shirt top!
+    mb.addSculptedSphere({ rx: 0.132, ry: 0.125, rz: 0.122, cx: 0, cy: 0.125, cz: 0, segU: 18, segV: 14, colorFn: () => gold });
+    mb.addSculptedSphere({ rx: 0.134, ry: 0.088, rz: 0.124, cx: 0, cy: 0.195, cz: 0, segU: 18, segV: 12, colorFn: () => red });
+    // Head & snout
+    mb.addSculptedSphere({ rx: 0.118, ry: 0.112, rz: 0.112, cx: 0, cy: 0.34, cz: 0.02, segU: 18, segV: 14, colorFn: () => gold });
+    mb.addSculptedSphere({ rx: 0.056, ry: 0.044, rz: 0.058, cx: 0, cy: 0.315, cz: 0.115, segU: 14, segV: 10, colorFn: () => gold });
+    mb.addSculptedSphere({ rx: 0.023, ry: 0.017, rz: 0.019, cx: 0, cy: 0.335, cz: 0.168, segU: 10, segV: 8, colorFn: () => dark });
+    for (const s of [-1, 1]) {
+      mb.addSculptedSphere({ rx: 0.015, ry: 0.015, rz: 0.012, cx: s * 0.046, cy: 0.365, cz: 0.122, segU: 8, segV: 8, colorFn: () => dark });
+      mb.addSculptedSphere({ rx: 0.040, ry: 0.040, rz: 0.025, cx: s * 0.095, cy: 0.435, cz: 0.01, segU: 12, segV: 10, colorFn: () => gold });
+      // Red sleeve cap + golden arm
+      mb.addSculptedSphere({ rx: 0.052, ry: 0.048, rz: 0.052, cx: s * 0.128, cy: 0.235, cz: 0.02, segU: 12, segV: 10, colorFn: () => red });
+      mb.addSculptedSphere({ rx: 0.044, ry: 0.072, rz: 0.044, cx: s * 0.152, cy: 0.185, cz: 0.05, rotZ: s * 0.38, segU: 12, segV: 10, colorFn: () => gold });
+      mb.addSculptedSphere({ rx: 0.054, ry: 0.050, rz: 0.092, cx: s * 0.085, cy: 0.050, cz: 0.10, segU: 12, segV: 10, colorFn: () => gold });
+    }
+    return mb.upload();
+  }
+
+  function buildChewStickMesh() {
+    const mb = new MeshBuilder();
+    mb.addTube({
+      spineFn: (t) => [t * 0.04, -t * 0.22, t * 0.26],
+      radiusFn: (t) => 0.022 + Math.sin(t * 24) * 0.0025,
+      segL: 16, segR: 10,
+      colorFn: (t) => [0.55 + (t % 0.1) * 0.5, 0.16, 0.18]
+    });
+    return mb.upload();
+  }
+
+  function buildHeartMesh() {
+    const mb = new MeshBuilder();
+    mb.addSculptedSphere({
+      rx: 0.055, ry: 0.055, rz: 0.028,
+      segU: 16, segV: 12,
+      deformFn: (x, y, z) => {
+        const nx = x / 0.055, ny = y / 0.055;
+        const hy = ny + Math.sqrt(Math.abs(nx)) * 0.42 - 0.15;
+        const taper = ny < 0 ? 1.0 + ny * 0.45 : 1.0;
+        return [x * taper, hy * 0.055, z];
+      }
+    });
+    return mb.upload();
+  }
+
+  function buildStageMesh() {
+    const mb = new MeshBuilder();
+    mb.addDisc({ r: 2.6, seg: 56, cy: 0 });
+    return mb.upload();
+  }
+
+  const meshes = {
+    torsoBase: buildTorsoBaseMesh(),
+    torsoCurls: buildTorsoCurlsMesh(),
+    head: buildHeadMesh(),
+    ear: buildEarMesh(),
+    nose: buildNoseMesh(),
+    eye: buildEyeMesh(),
+    eyelid: buildEyelidMesh(),
+    mouthLip: buildMouthLipMesh(),
+    tonguePant: buildTonguePantMesh(),
+    tongueBlep: buildTongueBlepMesh(),
+    legFront: buildLegMesh(false),
+    legBack: buildLegMesh(true),
+    tail: buildTailMesh(),
+    shirtTeal: buildShirtShell({ zStart: -0.30, zEnd: 0.28, collar: false, sleeves: true }),
+    shirtBoo: buildShirtShell({ zStart: -0.32, zEnd: 0.28, collar: true, sleeves: true }),
+    vestOrange: buildShirtShell({ zStart: -0.29, zEnd: 0.28, collar: false, sleeves: false, trimColor: [0.95, 0.88, 0.18] }),
+    vestRed: buildShirtShell({ zStart: -0.32, zEnd: 0.29, collar: false, sleeves: false }),
+    jacketMustard: buildMustardJacketMesh(),
+    harness: buildHarnessMesh(),
+    glassesFrame: buildGlassesFrameMesh(),
+    glassesLens: buildGlassesLensMesh(),
+    cushions: buildCushionsMesh(),
+    pooh: buildPoohPlushieMesh(),
+    chewStick: buildChewStickMesh(),
+    heart: buildHeartMesh(),
+    stage: buildStageMesh(),
+  };
+
+  // =========================================================================
+  // 6. State, Palettes, Lighting & Interactive Rig
+  // =========================================================================
+  const state = {
+    pose: 'sit',
+    expr: 'sweet',
+    coat: 'shaggy',
+    outfit: 'none',
+    glasses: false,
+    plushie: true,
+    cushion: true,
+    treat: false,
+    lighting: 'balcony',
+    autoSpin: false,
+    soundOn: false,
+    boops: 0,
+    pets: 0,
+    boopTimer: 0,
+    petTimer: 0,
+    barkTimer: 0,
+    plushBounce: 0,
+    blinkTimer: 2.4,
+    blinkVal: 0,
+  };
+
+  const cam = {
+    yaw: 0.36,
+    pitch: 0.20,
+    dist: 3.05,
+    targetY: 0.72,
+    goalYaw: 0.36,
+    goalPitch: 0.20,
+    goalDist: 3.05,
+    goalTargetY: 0.72,
+    pos: [0, 1, 3],
+    pointerX: 0,
+    pointerY: 0,
+    hovering: false,
+  };
+
+  const rig = {
+    rootY: 0.27,
+    bodyY: 0.43,
+    bodyZ: -0.06,
+    bodyPitch: -0.58,
+    headPitch: 0.50,
+    headYaw: 0,
+    headRoll: 0.12,
+    flPitch: 0.56,
+    frPitch: 0.56,
+    flOut: 0.05,
+    frOut: 0.05,
+    blPitch: -0.92,
+    brPitch: -0.92,
+    blOut: 0.26,
+    brOut: 0.26,
+    tailPitch: -0.55,
+    tailWagSpeed: 4.5,
+    tailWagAmp: 0.22,
+    pantAmt: 0.0,
+    blepAmt: 0.0,
+    eyeClose: 0.0,
+    coatScale: 1.0,
+    earScale: 1.0,
+    puppyScale: 1.0,
+  };
+
+  const COAT_PALETTES = {
+    shaggy: {
+      base: [1.08, 1.00, 0.87],
+      tip:  [0.95, 0.80, 0.62],
+      noseBase: [0.18, 0.10, 0.09],
+      noseTip:  [0.48, 0.28, 0.24],
+      furScale: 15.5,
+    },
+    puppycut: {
+      base: [1.10, 1.03, 0.91],
+      tip:  [0.97, 0.84, 0.68],
+      noseBase: [0.17, 0.10, 0.09],
+      noseTip:  [0.44, 0.26, 0.22],
+      furScale: 20.0,
+    },
+    baby2012: {
+      base: [0.88, 0.56, 0.28],
+      tip:  [0.66, 0.37, 0.16],
+      noseBase: [0.14, 0.09, 0.08],
+      noseTip:  [0.28, 0.16, 0.13],
+      furScale: 17.5,
+    }
+  };
+
+  const LIGHT_PRESETS = {
+    balcony: {
+      keyDir: [0.72, 0.88, 0.68],
+      keyCol: [1.05, 0.97, 0.86],
+      fillDir: [-0.85, 0.35, 0.55],
+      fillCol: [0.78, 0.88, 1.00],
+      rimDir: [-0.35, 0.72, -0.95],
+      rimCol: [1.08, 0.95, 0.78],
+      ambSky: [0.92, 0.93, 0.96],
+      ambGround: [0.58, 0.46, 0.39],
+      bgLight: [0.95, 0.93, 0.89],
+      bgDark:  [0.13, 0.14, 0.16],
+    },
+    cozy: {
+      keyDir: [-0.65, 0.75, 0.72],
+      keyCol: [1.10, 0.84, 0.58],
+      fillDir: [0.82, 0.30, 0.42],
+      fillCol: [0.58, 0.70, 0.96],
+      rimDir: [0.25, 0.68, -0.92],
+      rimCol: [1.02, 0.76, 0.54],
+      ambSky: [0.86, 0.77, 0.69],
+      ambGround: [0.46, 0.34, 0.30],
+      bgLight: [0.95, 0.90, 0.85],
+      bgDark:  [0.12, 0.11, 0.14],
+    },
+    studio: {
+      keyDir: [0.55, 0.92, 0.85],
+      keyCol: [1.02, 1.01, 1.00],
+      fillDir: [-0.80, 0.45, 0.55],
+      fillCol: [0.86, 0.90, 0.96],
+      rimDir: [0.0, 0.82, -1.0],
+      rimCol: [0.98, 0.99, 1.04],
+      ambSky: [0.94, 0.95, 0.98],
+      ambGround: [0.56, 0.55, 0.56],
+      bgLight: [0.95, 0.96, 0.97],
+      bgDark:  [0.12, 0.13, 0.15],
+    }
+  };
+
+  const hearts = [];
+  function spawnHearts(worldPos, count = 4) {
+    for (let i = 0; i < count; i++) {
+      hearts.push({
+        x: worldPos[0] + (Math.random() - 0.5) * 0.28,
+        y: worldPos[1] + 0.08 + Math.random() * 0.12,
+        z: worldPos[2] + (Math.random() - 0.5) * 0.22,
+        vx: (Math.random() - 0.5) * 0.18,
+        vy: 0.42 + Math.random() * 0.28,
+        vz: (Math.random() - 0.5) * 0.16,
+        age: 0,
+        life: 1.15 + Math.random() * 0.45,
+        scale: 0.55 + Math.random() * 0.45,
+        color: i % 2 === 0 ? [0.95, 0.36, 0.48] : [0.99, 0.65, 0.42]
+      });
+    }
+  }
+
+  let audioCtx = null;
+  function playCuteSound(type) {
+    if (!state.soundOn) return;
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      if (type === 'boop') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(520, now);
+        osc.frequency.exponentialRampToValueAtTime(790, now + 0.09);
+        gain.gain.setValueAtTime(0.14, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+        osc.start(now); osc.stop(now + 0.15);
+      } else if (type === 'bark') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(420, now);
+        osc.frequency.exponentialRampToValueAtTime(680, now + 0.06);
+        osc.frequency.exponentialRampToValueAtTime(340, now + 0.16);
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+        osc.start(now); osc.stop(now + 0.19);
+      } else if (type === 'pet') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(340, now);
+        osc.frequency.exponentialRampToValueAtTime(440, now + 0.18);
+        gain.gain.setValueAtTime(0.08, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+        osc.start(now); osc.stop(now + 0.23);
+      }
+    } catch (_) {}
+  }
+
+  const hitSpheres = {
+    nose: { pos: [0, 1.0, 0.5], r: 0.15 },
+    head: { pos: [0, 1.0, 0.3], r: 0.35 },
+    body: { pos: [0, 0.6, 0.0], r: 0.42 },
+    pooh: { pos: [0.54, 0.4, 0.32], r: 0.24 },
+  };
+
+  // =========================================================================
+  // 7. Rendering Pipeline & Theme Sync
+  // =========================================================================
+  const projMat = M4.create();
+  const viewMat = M4.create();
+  const normMat = new Float32Array(9);
+  const invVP = M4.create();
+  const tmpMat = M4.create();
+
+  function drawMesh(mesh, modelMat, opts) {
+    gl.uniformMatrix4fv(loc.uModel, false, modelMat);
+    M4.normalMat3(normMat, modelMat);
+    gl.uniformMatrix3fv(loc.uNormalMat, false, normMat);
+
+    const base = opts.base || [1, 1, 1];
+    const tip = opts.tip || base;
+    gl.uniform3f(loc.uBaseColor, base[0], base[1], base[2]);
+    gl.uniform3f(loc.uTipColor, tip[0], tip[1], tip[2]);
+    gl.uniform1i(loc.uMatType, opts.matType ?? 4);
+    gl.uniform1f(loc.uFurScale, opts.furScale ?? 16.0);
+    gl.uniform1f(loc.uAlpha, opts.alpha ?? 1.0);
+    gl.uniform1f(loc.uUseTex, opts.tex ? 1.0 : 0.0);
+    if (opts.tex) {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, opts.tex);
+      gl.uniform1i(loc.uTex, 0);
+    }
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, mesh.posBuf);
+    gl.enableVertexAttribArray(loc.aPos);
+    gl.vertexAttribPointer(loc.aPos, 3, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, mesh.normBuf);
+    gl.enableVertexAttribArray(loc.aNorm);
+    gl.vertexAttribPointer(loc.aNorm, 3, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, mesh.uvBuf);
+    gl.enableVertexAttribArray(loc.aUV);
+    gl.vertexAttribPointer(loc.aUV, 2, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, mesh.colBuf);
+    gl.enableVertexAttribArray(loc.aColor);
+    gl.vertexAttribPointer(loc.aColor, 3, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.idxBuf);
+    gl.drawElements(gl.TRIANGLES, mesh.count, gl.UNSIGNED_SHORT, 0);
+  }
+
+  let isLightTheme = true;
+  function syncTheme() {
+    if (document.documentElement.classList.contains('light')) { isLightTheme = true; return; }
+    if (document.documentElement.classList.contains('dark')) { isLightTheme = false; return; }
+    const bg = getComputedStyle(document.body).backgroundColor;
+    const m = bg && bg.match(/[\d.]+/g);
+    if (m && m.length >= 3 && (m.length < 4 || parseFloat(m[3]) > 0.05)) {
+      const lum = (0.299 * +m[0] + 0.587 * +m[1] + 0.114 * +m[2]) / 255;
+      isLightTheme = lum > 0.5;
+    } else if (window.matchMedia) {
+      isLightTheme = !window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+  }
+  syncTheme();
+  window.addEventListener('themechange', syncTheme);
+
+  function resizeCanvas() {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.max(1, Math.floor(rect.width * dpr));
+    const h = Math.max(1, Math.floor(rect.height * dpr));
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
+    gl.viewport(0, 0, canvas.width, canvas.height);
+  }
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+
+  let isDragging = false;
+  let lastT = performance.now();
+  let elapsed = 0;
+
+  // =========================================================================
+  // 8. Animation Loop & Hierarchical Doggy Rendering
+  // =========================================================================
+  function renderFrame(now) {
+    const dt = Math.min(0.05, Math.max(0.001, (now - lastT) / 1000));
+    lastT = now;
+    elapsed += dt;
+    resizeCanvas();
+
+    state.boopTimer = Math.max(0, state.boopTimer - dt);
+    state.petTimer = Math.max(0, state.petTimer - dt);
+    state.barkTimer = Math.max(0, state.barkTimer - dt);
+    state.plushBounce = Math.max(0, state.plushBounce - dt * 2.2);
+
+    state.blinkTimer -= dt;
+    if (state.blinkTimer <= 0) {
+      state.blinkTimer = 2.6 + Math.random() * 3.2;
+      state.blinkVal = 1.0;
+    }
+    state.blinkVal = Math.max(0, state.blinkVal - dt * 6.5);
+
+    let tBodyY = 0.56, tBodyZ = -0.05, tBodyPitch = 0.0;
+    let tHeadPitch = 0.04, tHeadRoll = 0.0;
+    let tFL = 0.0, tFR = 0.0, tFLOut = 0.0, tFROut = 0.0;
+    let tBL = 0.0, tBR = 0.0, tBLOut = 0.0, tBROut = 0.0;
+    let tTailPitch = 0.10, tWagSpeed = 4.2, tWagAmp = 0.25;
+
+    if (state.pose === 'sit') {
+      tBodyY = 0.43; tBodyZ = -0.06; tBodyPitch = -0.58;
+      tHeadPitch = 0.50; tHeadRoll = 0.12;
+      tFL = 0.56; tFR = 0.56; tFLOut = 0.05; tFROut = 0.05;
+      tBL = -0.92; tBR = -0.92; tBLOut = 0.26; tBROut = 0.26;
+      tTailPitch = -0.55; tWagSpeed = 4.5; tWagAmp = 0.22;
+    } else if (state.pose === 'lounge') {
+      tBodyY = 0.23; tBodyZ = -0.04; tBodyPitch = 0.04;
+      tHeadPitch = -0.03; tHeadRoll = 0.16;
+      tFL = -1.32; tFR = -1.16; tFLOut = 0.18; tFROut = 0.26;
+      tBL = 1.15; tBR = 1.25; tBLOut = 0.52; tBROut = 0.42;
+      tTailPitch = -0.78; tWagSpeed = 2.2; tWagAmp = 0.12;
+    } else if (state.pose === 'playful') {
+      tBodyY = 0.47; tBodyZ = -0.08; tBodyPitch = -0.76;
+      tHeadPitch = 0.62; tHeadRoll = -0.10;
+      tFL = -0.45 + Math.sin(elapsed * 8.5) * 0.22;
+      tFR = -0.45 - Math.sin(elapsed * 8.5) * 0.22;
+      tFLOut = 0.14; tFROut = 0.14;
+      tBL = -0.82; tBR = -0.82; tBLOut = 0.28; tBROut = 0.28;
+      tTailPitch = -0.35; tWagSpeed = 10.0; tWagAmp = 0.40;
+    }
+
+    let tPant = state.expr === 'pant' ? 1 : 0;
+    let tBlep = state.expr === 'blep' ? 1 : 0;
+    let tEyeClose = state.expr === 'sleepy' ? 0.92 : 0;
+    if (state.expr === 'tilt') tHeadRoll = 0.34;
+    if (state.expr === 'sleepy') { tHeadPitch += 0.16; tWagSpeed = 1.4; tWagAmp = 0.06; }
+
+    if (state.boopTimer > 0) {
+      tBlep = 1.0;
+      tHeadPitch -= 0.14 * Math.sin(clamp(state.boopTimer / 1.5, 0, 1) * Math.PI);
+      tWagSpeed = 11.5; tWagAmp = 0.42;
+    }
+    if (state.petTimer > 0) {
+      tEyeClose = Math.max(tEyeClose, 0.88);
+      tHeadPitch += 0.10;
+      tHeadRoll += Math.sin(elapsed * 6.0) * 0.10;
+      tWagSpeed = 13.0; tWagAmp = 0.48;
+    }
+    const barkHop = state.barkTimer > 0 ? Math.abs(Math.sin(state.barkTimer * 14.0)) * 0.12 : 0;
+    if (state.barkTimer > 0) {
+      tHeadPitch -= 0.18;
+      tWagSpeed = 12.0; tWagAmp = 0.45;
+    }
+
+    const tRootY = state.cushion ? 0.275 : 0.0;
+    const tCoatScale = state.coat === 'puppycut' ? 0.93 : (state.coat === 'baby2012' ? 0.91 : 1.0);
+    const tEarScale = state.coat === 'puppycut' ? 0.78 : (state.coat === 'baby2012' ? 0.86 : 1.03);
+    const tPuppyScale = state.coat === 'baby2012' ? 0.84 : 1.0;
+
+    const k = Math.min(1, dt * 8.5);
+    rig.rootY = lerp(rig.rootY, tRootY, k);
+    rig.bodyY = lerp(rig.bodyY, tBodyY, k);
+    rig.bodyZ = lerp(rig.bodyZ, tBodyZ, k);
+    rig.bodyPitch = lerp(rig.bodyPitch, tBodyPitch, k);
+    rig.headPitch = lerp(rig.headPitch, tHeadPitch, k);
+    rig.headRoll = lerp(rig.headRoll, tHeadRoll, k);
+    rig.flPitch = lerp(rig.flPitch, tFL, k);
+    rig.frPitch = lerp(rig.frPitch, tFR, k);
+    rig.flOut = lerp(rig.flOut, tFLOut, k);
+    rig.frOut = lerp(rig.frOut, tFROut, k);
+    rig.blPitch = lerp(rig.blPitch, tBL, k);
+    rig.brPitch = lerp(rig.brPitch, tBR, k);
+    rig.blOut = lerp(rig.blOut, tBLOut, k);
+    rig.brOut = lerp(rig.brOut, tBROut, k);
+    rig.tailPitch = lerp(rig.tailPitch, tTailPitch, k);
+    rig.tailWagSpeed = lerp(rig.tailWagSpeed, tWagSpeed, k);
+    rig.tailWagAmp = lerp(rig.tailWagAmp, tWagAmp, k);
+    rig.pantAmt = lerp(rig.pantAmt, tPant, k);
+    rig.blepAmt = lerp(rig.blepAmt, tBlep, k);
+    rig.eyeClose = lerp(rig.eyeClose, tEyeClose, k);
+    rig.coatScale = lerp(rig.coatScale, tCoatScale, k);
+    rig.earScale = lerp(rig.earScale, tEarScale, k);
+    rig.puppyScale = lerp(rig.puppyScale, tPuppyScale, k);
+
+    const targetLookYaw = cam.hovering ? clamp(cam.pointerX * 0.34, -0.34, 0.34) : Math.sin(elapsed * 0.7) * 0.08;
+    const targetLookPitch = cam.hovering ? clamp(-cam.pointerY * 0.20, -0.20, 0.20) : 0;
+    rig.headYaw = lerp(rig.headYaw, targetLookYaw, Math.min(1, dt * 5.0));
+
+    if (state.autoSpin && !isDragging) cam.goalYaw += dt * 0.42;
+    cam.yaw = lerp(cam.yaw, cam.goalYaw, Math.min(1, dt * 10));
+    cam.pitch = lerp(cam.pitch, cam.goalPitch, Math.min(1, dt * 10));
+    cam.dist = lerp(cam.dist, cam.goalDist, Math.min(1, dt * 10));
+    cam.targetY = lerp(cam.targetY, cam.goalTargetY + (state.cushion ? 0.16 : 0.0), Math.min(1, dt * 8));
+
+    const cx = Math.sin(cam.yaw) * Math.cos(cam.pitch) * cam.dist;
+    const cy = cam.targetY + Math.sin(cam.pitch) * cam.dist;
+    const cz = Math.cos(cam.yaw) * Math.cos(cam.pitch) * cam.dist;
+    cam.pos = [cx, cy, cz];
+
+    const aspect = canvas.width / Math.max(1, canvas.height);
+    M4.perspective(projMat, 38 * Math.PI / 180, aspect, 0.1, 30.0);
+    M4.lookAt(viewMat, cam.pos, [0, cam.targetY, 0.06], [0, 1, 0]);
+    M4.multiply(tmpMat, projMat, viewMat);
+    M4.invert(invVP, tmpMat);
+
+    const lp = LIGHT_PRESETS[state.lighting];
+    const bgCol = isLightTheme ? lp.bgLight : lp.bgDark;
+
+    gl.clearColor(bgCol[0], bgCol[1], bgCol[2], 1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.enable(gl.DEPTH_TEST);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+    gl.useProgram(prog);
+    gl.uniformMatrix4fv(loc.uProj, false, projMat);
+    gl.uniformMatrix4fv(loc.uView, false, viewMat);
+    gl.uniform3fv(loc.uCamPos, cam.pos);
+    gl.uniform3fv(loc.uKeyDir, lp.keyDir);
+    gl.uniform3fv(loc.uKeyCol, lp.keyCol);
+    gl.uniform3fv(loc.uFillDir, lp.fillDir);
+    gl.uniform3fv(loc.uFillCol, lp.fillCol);
+    gl.uniform3fv(loc.uRimDir, lp.rimDir);
+    gl.uniform3fv(loc.uRimCol, lp.rimCol);
+    gl.uniform3fv(loc.uAmbSky, lp.ambSky);
+    gl.uniform3fv(loc.uAmbGround, lp.ambGround);
+    gl.uniform3fv(loc.uBgColor, bgCol);
+    gl.uniform1f(loc.uCushionOn, state.cushion ? 1.0 : 0.0);
+    gl.uniform3f(loc.uShadowPos0, 0.0, 0.0, state.pose === 'lounge' ? 0.65 : 0.52);
+    gl.uniform3f(loc.uShadowPos1, 0.54, 0.32, state.plushie ? 0.24 : 0.0);
+
+    const pal = COAT_PALETTES[state.coat];
+    const breath = Math.sin(elapsed * 2.6) * 0.012;
+    const wag = Math.sin(elapsed * rig.tailWagSpeed) * rig.tailWagAmp;
+
+    // 1) Seamless Soft Contact Shadow Plane
+    gl.depthMask(false);
+    drawMesh(meshes.stage, M4.create(), { matType: 6 });
+    gl.depthMask(true);
+
+    // 2) Stacked Maroon Cushions (WA0033)
+    if (state.cushion) {
+      const cushM = M4.create();
+      M4.rotateY(cushM, cushM, 0.14);
+      drawMesh(meshes.cushions, cushM, { matType: 3, base: [1, 1, 1] });
+    }
+
+    // 3) Winnie the Pooh Plushie (WA0025)
+    if (state.plushie) {
+      const poohM = M4.create();
+      const bounceY = Math.sin(state.plushBounce * Math.PI) * 0.18;
+      const py = (state.cushion ? 0.285 : 0.0) + bounceY;
+      M4.translate(poohM, poohM, 0.52, py, 0.32);
+      M4.rotateY(poohM, poohM, -0.55 + Math.sin(state.plushBounce * Math.PI * 2) * 0.25);
+      M4.rotateZ(poohM, poohM, 0.05);
+      drawMesh(meshes.pooh, poohM, { matType: 4, base: [1, 1, 1] });
+      hitSpheres.pooh.pos = [0.52, py + 0.18, 0.32];
+    }
+
+    // 4) Hierarchical Doggy
+    const dogRoot = M4.create();
+    M4.translate(dogRoot, dogRoot, 0, rig.rootY + barkHop, 0);
+    M4.scale(dogRoot, dogRoot, rig.puppyScale, rig.puppyScale, rig.puppyScale);
+
+    const bodyM = M4.create();
+    M4.copy(bodyM, dogRoot);
+    M4.translate(bodyM, bodyM, 0, rig.bodyY + breath * 0.5, rig.bodyZ);
+    M4.rotateX(bodyM, bodyM, rig.bodyPitch);
+
+    const torsoDrawM = M4.create();
+    M4.copy(torsoDrawM, bodyM);
+    M4.scale(torsoDrawM, torsoDrawM, rig.coatScale * (1 + breath), 1 + breath * 0.8, 1);
+    drawMesh(meshes.torsoBase, torsoDrawM, {
+      matType: 0, base: pal.base, tip: pal.tip, furScale: pal.furScale
+    });
+    // Only draw outer torso curls when wearing Natural Coat or Harness (zero clipping through sweaters!)
+    if (state.outfit === 'none' || state.outfit === 'harness') {
+      drawMesh(meshes.torsoCurls, torsoDrawM, {
+        matType: 0, base: pal.base, tip: pal.tip, furScale: pal.furScale
+      });
+    }
+    hitSpheres.body.pos = M4.transformPoint(bodyM, 0, 0.02, 0.0);
+
+    // Outfits
+    if (state.outfit !== 'none') {
+      const outM = M4.create();
+      M4.copy(outM, bodyM);
+      M4.scale(outM, outM, 1 + breath * 1.1, 1 + breath * 0.9, 1.0);
+      if (state.outfit === 'teal') {
+        drawMesh(meshes.shirtTeal, outM, { matType: 3, base: [0.02, 0.58, 0.72] });
+      } else if (state.outfit === 'mustard') {
+        drawMesh(meshes.jacketMustard, outM, { matType: 3, base: [1, 1, 1] });
+      } else if (state.outfit === 'boo') {
+        drawMesh(meshes.shirtBoo, outM, { matType: 3, base: [1, 1, 1], tex: booTexture });
+      } else if (state.outfit === 'orange') {
+        drawMesh(meshes.vestOrange, outM, { matType: 3, base: [0.90, 0.35, 0.14] });
+      } else if (state.outfit === 'red') {
+        drawMesh(meshes.vestRed, outM, { matType: 3, base: [0.74, 0.13, 0.19] });
+      } else if (state.outfit === 'harness') {
+        drawMesh(meshes.harness, outM, { matType: 3, base: [0.76, 0.11, 0.34] });
+      }
+    }
+
+    // 4 Fluffy Legs
+    const drawLeg = (mesh, x, y, z, pitch, outRoll) => {
+      const m = M4.create();
+      M4.copy(m, bodyM);
+      M4.translate(m, m, x, y, z);
+      M4.rotateX(m, m, pitch);
+      M4.rotateZ(m, m, outRoll);
+      M4.scale(m, m, rig.coatScale, 1, rig.coatScale);
+      drawMesh(mesh, m, { matType: 0, base: pal.base, tip: pal.tip, furScale: pal.furScale });
+    };
+    drawLeg(meshes.legFront, -0.14, -0.07, 0.23, rig.flPitch, -rig.flOut);
+    drawLeg(meshes.legFront,  0.14, -0.07, 0.23, rig.frPitch,  rig.frOut);
+    drawLeg(meshes.legBack,  -0.15, -0.06, -0.31, rig.blPitch, -rig.blOut);
+    drawLeg(meshes.legBack,   0.15, -0.06, -0.31, rig.brPitch,  rig.brOut);
+
+    // Plumed Cloud Tail
+    const tailM = M4.create();
+    M4.copy(tailM, bodyM);
+    M4.translate(tailM, tailM, 0, 0.10, -0.40);
+    M4.rotateX(tailM, tailM, rig.tailPitch);
+    M4.rotateY(tailM, tailM, wag);
+    M4.rotateZ(tailM, tailM, wag * 0.45);
+    drawMesh(meshes.tail, tailM, { matType: 0, base: pal.base, tip: pal.tip, furScale: pal.furScale });
+
+    // Head Group
+    const headM = M4.create();
+    M4.copy(headM, bodyM);
+    M4.translate(headM, headM, 0, 0.27, 0.33);
+    M4.rotateY(headM, headM, rig.headYaw);
+    M4.rotateX(headM, headM, rig.headPitch + targetLookPitch);
+    M4.rotateZ(headM, headM, rig.headRoll);
+    const babyHeadBoost = state.coat === 'baby2012' ? 1.12 : 1.0;
+    M4.scale(headM, headM, babyHeadBoost, babyHeadBoost, babyHeadBoost);
+
+    const headFurM = M4.create();
+    M4.copy(headFurM, headM);
+    M4.scale(headFurM, headFurM, rig.coatScale, rig.coatScale * 0.99, rig.coatScale);
+    drawMesh(meshes.head, headFurM, { matType: 0, base: pal.base, tip: pal.tip, furScale: pal.furScale });
+    hitSpheres.head.pos = M4.transformPoint(headM, 0, 0.03, 0.05);
+
+    // Floppy Feathered Ears
+    const earBounce = Math.sin(elapsed * 3.4) * 0.03 + (state.petTimer > 0 ? 0.14 : 0) + (state.barkTimer > 0 ? 0.16 : 0);
+    for (const s of [-1, 1]) {
+      const earM = M4.create();
+      M4.copy(earM, headM);
+      M4.translate(earM, earM, s * 0.205, 0.122, 0.01);
+      M4.rotateZ(earM, earM, s * (0.14 + earBounce + rig.headRoll * 0.35));
+      M4.rotateX(earM, earM, -0.06);
+      M4.scale(earM, earM, s * rig.earScale, rig.earScale, rig.earScale);
+      drawMesh(meshes.ear, earM, { matType: 0, base: pal.base, tip: pal.tip, furScale: pal.furScale });
+    }
+
+    // Boopable Heart-Shaped Wet Nose
+    const boopSquish = state.boopTimer > 1.05 ? Math.sin(((state.boopTimer - 1.05) / 0.45) * Math.PI) * 0.16 : 0;
+    const noseM = M4.create();
+    M4.copy(noseM, headM);
+    M4.translate(noseM, noseM, 0, -0.012, 0.302 - boopSquish * 0.09);
+    M4.scale(noseM, noseM, 1 + boopSquish, 1 - boopSquish * 0.5, 1 - boopSquish);
+    drawMesh(meshes.nose, noseM, { matType: 1, base: pal.noseBase, tip: pal.noseTip });
+    hitSpheres.nose.pos = M4.transformPoint(headM, 0, -0.012, 0.305);
+
+    // Soulful Glossy Dark Eyes + Blinking Eyelids
+    const closeAmt = Math.max(rig.eyeClose, state.blinkVal);
+    for (const s of [-1, 1]) {
+      const eyeM = M4.create();
+      M4.copy(eyeM, headM);
+      M4.translate(eyeM, eyeM, s * 0.108, 0.056, 0.200);
+      const eyeSz = state.coat === 'baby2012' ? 1.12 : 1.0;
+      M4.scale(eyeM, eyeM, eyeSz, eyeSz, eyeSz);
+      drawMesh(meshes.eye, eyeM, { matType: 2, base: [0.04, 0.025, 0.02] });
+
+      if (closeAmt > 0.04) {
+        const lidM = M4.create();
+        M4.copy(lidM, eyeM);
+        M4.rotateX(lidM, lidM, lerp(-1.25, 0.18, closeAmt));
+        drawMesh(meshes.eyelid, lidM, { matType: 0, base: pal.base, tip: pal.tip, furScale: pal.furScale });
+      }
+    }
+
+    // Mouth Lip & Tongues
+    const jawDrop = (rig.pantAmt * 0.030) + (state.barkTimer > 0 ? Math.abs(Math.sin(state.barkTimer * 18)) * 0.052 : 0) + (state.treat ? 0.024 : 0);
+    const lipM = M4.create();
+    M4.copy(lipM, headM);
+    M4.translate(lipM, lipM, 0, -0.092 - jawDrop, 0.242);
+    M4.rotateX(lipM, lipM, jawDrop * 3.5);
+    drawMesh(meshes.mouthLip, lipM, { matType: 4, base: [1, 1, 1] });
+
+    if (rig.pantAmt > 0.05 && !state.treat) {
+      const tM = M4.create();
+      M4.copy(tM, headM);
+      const pantBob = Math.sin(elapsed * 9.5) * 0.008;
+      M4.translate(tM, tM, 0, -0.088 + pantBob, 0.232);
+      M4.scale(tM, tM, rig.pantAmt, rig.pantAmt, rig.pantAmt);
+      drawMesh(meshes.tonguePant, tM, { matType: 4, base: [0.88, 0.36, 0.45] });
+    }
+
+    if (rig.blepAmt > 0.05 && !state.treat) {
+      const bM = M4.create();
+      M4.copy(bM, headM);
+      M4.translate(bM, bM, 0, -0.072, 0.256);
+      const s = rig.blepAmt;
+      M4.scale(bM, bM, s, s, s);
+      drawMesh(meshes.tongueBlep, bM, { matType: 4, base: [0.89, 0.38, 0.47] });
+    }
+
+    if (state.treat) {
+      const chewM = M4.create();
+      M4.copy(chewM, headM);
+      const nibble = Math.sin(elapsed * 11.0) * 0.06;
+      M4.translate(chewM, chewM, 0.01, -0.085, 0.252);
+      M4.rotateX(chewM, chewM, nibble);
+      M4.rotateZ(chewM, chewM, -0.15 + nibble * 0.5);
+      drawMesh(meshes.chewStick, chewM, { matType: 4, base: [1, 1, 1] });
+    }
+
+    // Stylish Glasses (Frame + Ultra-Clear Crystal Lenses!)
+    if (state.glasses) {
+      drawMesh(meshes.glassesFrame, headM, { matType: 4, base: [1, 1, 1] });
+      gl.depthMask(false);
+      drawMesh(meshes.glassesLens, headM, { matType: 5, base: [0.9, 0.95, 1.0] });
+      gl.depthMask(true);
+    }
+
+    // Floating 3D Hearts
+    for (let i = hearts.length - 1; i >= 0; i--) {
+      const h = hearts[i];
+      h.age += dt;
+      if (h.age >= h.life) { hearts.splice(i, 1); continue; }
+      h.x += h.vx * dt;
+      h.y += h.vy * dt;
+      h.z += h.vz * dt;
+      const p = h.age / h.life;
+      const alpha = p < 0.2 ? p / 0.2 : 1.0 - (p - 0.2) / 0.8;
+      const hm = M4.create();
+      M4.translate(hm, hm, h.x, h.y, h.z);
+      M4.rotateY(hm, hm, cam.yaw + Math.sin(elapsed * 5 + i) * 0.3);
+      const sc = h.scale * (0.7 + 0.4 * Math.sin(p * Math.PI));
+      M4.scale(hm, hm, sc, sc, sc);
+      drawMesh(meshes.heart, hm, { matType: 4, base: h.color, alpha });
+    }
+
+    requestAnimationFrame(renderFrame);
+  }
+  requestAnimationFrame(renderFrame);
+
+  // =========================================================================
+  // 9. Pointer Orbit, Zoom & Exact 3D Raycasted Boop/Pet Interactions
+  // =========================================================================
+  let lastX = 0, lastY = 0, dragMoved = 0;
+
+  function showBubble(text, screenX, screenY) {
+    const layer = document.getElementById('reactionLayer');
+    const el = document.createElement('div');
+    el.className = 'speech-bubble';
+    el.style.left = `${screenX}px`;
+    el.style.top = `${screenY}px`;
+    el.textContent = text;
+    layer.appendChild(el);
+    setTimeout(() => el.remove(), 1700);
+  }
+
+  function setMood(text) {
+    document.getElementById('moodBadge').textContent = text;
+  }
+
+  function triggerBoop(sx, sy) {
+    state.boops++;
+    state.boopTimer = 1.5;
+    document.getElementById('boopCount').textContent = state.boops;
+    setMood('Booped! 🐾');
+    spawnHearts(hitSpheres.nose.pos, 5);
+    playCuteSound('boop');
+    const rect = canvas.getBoundingClientRect();
+    showBubble('Boop! 👅', sx ?? rect.width * 0.5, sy ?? rect.height * 0.36);
+  }
+
+  function triggerPet(sx, sy) {
+    state.pets++;
+    state.petTimer = 2.0;
+    document.getElementById('petCount').textContent = state.pets;
+    setMood('Blissful Pets 💛');
+    spawnHearts(hitSpheres.head.pos, 6);
+    playCuteSound('pet');
+    const rect = canvas.getBoundingClientRect();
+    showBubble('Good girl! 💛', sx ?? rect.width * 0.5, sy ?? rect.height * 0.30);
+  }
+
+  function triggerBark() {
+    state.barkTimer = 0.85;
+    setMood('Arf! Arf! 🐾');
+    spawnHearts(hitSpheres.head.pos, 3);
+    playCuteSound('bark');
+    const rect = canvas.getBoundingClientRect();
+    const lines = ['Arf! 🐾', 'Woof! 💕', 'Treat pls! 🦴', 'Play? 🧸'];
+    showBubble(lines[Math.floor(Math.random() * lines.length)], rect.width * 0.52, rect.height * 0.28);
+  }
+
+  function rayHitsSphere(orig, dir, center, r) {
+    const ocx = orig[0] - center[0], ocy = orig[1] - center[1], ocz = orig[2] - center[2];
+    const b = ocx * dir[0] + ocy * dir[1] + ocz * dir[2];
+    const c = ocx * ocx + ocy * ocy + ocz * ocz - r * r;
+    const disc = b * b - c;
+    if (disc < 0) return -1;
+    const t = -b - Math.sqrt(disc);
+    return t > 0 ? t : -1;
+  }
+
+  function pickAtClient(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    const nx = ((clientX - rect.left) / rect.width) * 2 - 1;
+    const ny = 1 - ((clientY - rect.top) / rect.height) * 2;
+    const unproj = (z) => {
+      const x = invVP[0]*nx + invVP[4]*ny + invVP[8]*z + invVP[12];
+      const y = invVP[1]*nx + invVP[5]*ny + invVP[9]*z + invVP[13];
+      const zz = invVP[2]*nx + invVP[6]*ny + invVP[10]*z + invVP[14];
+      const w = invVP[3]*nx + invVP[7]*ny + invVP[11]*z + invVP[15] || 1;
+      return [x/w, y/w, zz/w];
+    };
+    const pNear = unproj(-1);
+    const pFar = unproj(1);
+    let dx = pFar[0] - pNear[0], dy = pFar[1] - pNear[1], dz = pFar[2] - pNear[2];
+    const dl = Math.hypot(dx, dy, dz) || 1;
+    const dir = [dx/dl, dy/dl, dz/dl];
+    const sx = clientX - rect.left, sy = clientY - rect.top;
+
+    if (rayHitsSphere(pNear, dir, hitSpheres.nose.pos, hitSpheres.nose.r) > 0) { triggerBoop(sx, sy); return; }
+    if (rayHitsSphere(pNear, dir, hitSpheres.head.pos, hitSpheres.head.r) > 0) { triggerPet(sx, sy); return; }
+    if (state.plushie && rayHitsSphere(pNear, dir, hitSpheres.pooh.pos, hitSpheres.pooh.r) > 0) {
+      state.plushBounce = 1.0; playCuteSound('boop'); showBubble('Squeak! 🧸', sx, sy); return;
+    }
+    if (rayHitsSphere(pNear, dir, hitSpheres.body.pos, hitSpheres.body.r) > 0) { triggerPet(sx, sy); }
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    isDragging = true;
+    lastX = e.clientX; lastY = e.clientY; dragMoved = 0;
+    canvas.setPointerCapture(e.pointerId);
+  });
+
+  canvas.addEventListener('pointermove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    cam.pointerX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    cam.pointerY = ((e.clientY - rect.top) / rect.height) * 2 - 1;
+    cam.hovering = true;
+    if (!isDragging) return;
+    const dx = e.clientX - lastX, dy = e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY;
+    dragMoved += Math.hypot(dx, dy);
+    cam.goalYaw -= dx * 0.0085;
+    cam.goalPitch = clamp(cam.goalPitch + dy * 0.0068, -0.18, 1.15);
+  });
+
+  canvas.addEventListener('pointerup', (e) => {
+    if (isDragging && dragMoved < 7) pickAtClient(e.clientX, e.clientY);
+    isDragging = false;
+  });
+  canvas.addEventListener('pointerleave', () => { cam.hovering = false; });
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    cam.goalDist = clamp(cam.goalDist + e.deltaY * 0.0022, 1.35, 5.2);
+  }, { passive: false });
+
+  // =========================================================================
+  // 10. UI Binding & Studio Controls
+  // =========================================================================
+  function styleRadioGroup(containerId, attr, currentVal) {
+    document.querySelectorAll(`#${containerId} button`).forEach((b) => {
+      b.classList.toggle('is-active', b.getAttribute(attr) === currentVal);
+    });
+  }
+
+  function styleToggleBtn(id, active) {
+    const b = document.getElementById(id);
+    b.classList.toggle('is-active', active);
+    const dot = b.querySelector('.state-dot');
+    if (dot) dot.textContent = active ? 'On' : 'Off';
+  }
+
+  function refreshUI() {
+    styleRadioGroup('poseGroup', 'data-pose', state.pose);
+    styleRadioGroup('exprGroup', 'data-expr', state.expr);
+    styleRadioGroup('coatGroup', 'data-coat', state.coat);
+    styleRadioGroup('outfitGroup', 'data-outfit', state.outfit);
+    styleRadioGroup('lightGroup', 'data-light', state.lighting);
+    styleToggleBtn('togGlasses', state.glasses);
+    styleToggleBtn('togPlushie', state.plushie);
+    styleToggleBtn('togCushion', state.cushion);
+    styleToggleBtn('togTreat', state.treat);
+    document.getElementById('spinToggleBtn').textContent = state.autoSpin ? 'Spin: On' : 'Spin: Off';
+    document.getElementById('actSound').textContent = state.soundOn ? '🔊' : '🔈';
+  }
+
+  document.querySelectorAll('#poseGroup button').forEach(b => b.addEventListener('click', () => {
+    state.pose = b.getAttribute('data-pose');
+    setMood({ stand: 'Ready to Walk', sit: 'Good Girl Sitting', lounge: 'Cozy Cushion Nap', playful: 'Playtime!' }[state.pose]);
+    refreshUI();
+  }));
+  document.querySelectorAll('#exprGroup button').forEach(b => b.addEventListener('click', () => { state.expr = b.getAttribute('data-expr'); refreshUI(); }));
+  document.querySelectorAll('#coatGroup button').forEach(b => b.addEventListener('click', () => {
+    state.coat = b.getAttribute('data-coat');
+    setMood(state.coat === 'baby2012' ? 'Sept 2012 Puppy 💛' : 'Freshly Fluffed ✨');
+    refreshUI();
+  }));
+  document.querySelectorAll('#outfitGroup button').forEach(b => b.addEventListener('click', () => { state.outfit = b.getAttribute('data-outfit'); refreshUI(); }));
+  document.querySelectorAll('#lightGroup button').forEach(b => b.addEventListener('click', () => { state.lighting = b.getAttribute('data-light'); refreshUI(); }));
+
+  document.getElementById('togGlasses').addEventListener('click', () => { state.glasses = !state.glasses; refreshUI(); });
+  document.getElementById('togPlushie').addEventListener('click', () => { state.plushie = !state.plushie; refreshUI(); });
+  document.getElementById('togCushion').addEventListener('click', () => { state.cushion = !state.cushion; refreshUI(); });
+  document.getElementById('togTreat').addEventListener('click', () => {
+    state.treat = !state.treat;
+    if (state.treat) setMood('Munching Treat 🥩');
+    refreshUI();
+  });
+
+  document.getElementById('actBoop').addEventListener('click', () => triggerBoop());
+  document.getElementById('actPet').addEventListener('click', () => triggerPet());
+  document.getElementById('actTreat').addEventListener('click', () => {
+    state.treat = !state.treat;
+    if (state.treat) {
+      setMood('Yummy Jerky! 🥩');
+      spawnHearts(hitSpheres.head.pos, 4);
+      const rect = canvas.getBoundingClientRect();
+      showBubble('Nom nom! 🥩', rect.width * 0.5, rect.height * 0.34);
+    }
+    refreshUI();
+  });
+  document.getElementById('actBark').addEventListener('click', triggerBark);
+  document.getElementById('actSound').addEventListener('click', () => {
+    state.soundOn = !state.soundOn;
+    if (state.soundOn) playCuteSound('boop');
+    refreshUI();
+  });
+
+  document.getElementById('camFaceBtn').addEventListener('click', () => {
+    cam.goalYaw = 0.22; cam.goalPitch = 0.14; cam.goalDist = 1.65; cam.goalTargetY = 0.90;
+  });
+  document.getElementById('camFullBtn').addEventListener('click', () => {
+    cam.goalYaw = 0.36; cam.goalPitch = 0.20; cam.goalDist = 3.05; cam.goalTargetY = 0.72;
+  });
+  document.getElementById('spinToggleBtn').addEventListener('click', () => { state.autoSpin = !state.autoSpin; refreshUI(); });
+  document.getElementById('resetAllBtn').addEventListener('click', () => {
+    state.pose = 'sit'; state.expr = 'sweet'; state.coat = 'shaggy';
+    state.outfit = 'none'; state.glasses = false; state.plushie = true;
+    state.cushion = true; state.treat = false; state.lighting = 'balcony';
+    state.autoSpin = false;
+    cam.goalYaw = 0.36; cam.goalPitch = 0.20; cam.goalDist = 3.05; cam.goalTargetY = 0.72;
+    setMood('Happy & Wagging');
+    refreshUI();
+  });
+
+  
+  // Mobile two-finger pinch zoom
+  let pinchStartDist = 0, pinchStartCam = 0;
+  canvas.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) {
+      pinchStartDist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      pinchStartCam = cam.goalDist;
+    }
+  }, { passive: true });
+  canvas.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 2 && pinchStartDist > 0) {
+      const d = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      cam.goalDist = clamp(pinchStartCam * (pinchStartDist / Math.max(10, d)), 1.35, 5.2);
+    }
+  }, { passive: true });
+
+  refreshUI();
+})();
+</script>
+</body>
+</html>
