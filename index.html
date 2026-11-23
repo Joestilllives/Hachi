@@ -36,11 +36,10 @@
       background: var(--background); color: var(--foreground);
       -webkit-font-smoothing: antialiased;
     }
-    body { display: flex; flex-direction: column; }
-    @media (min-width: 960px) { body { flex-direction: row; } }
+    body { display: flex; flex-direction: row; }
 
     #stageContainer {
-      position: relative; flex: 1; min-height: 54%; height: 100%; overflow: hidden;
+      position: relative; flex: 1; height: 100%; overflow: hidden;
       display: flex; align-items: center; justify-content: center;
     }
     .stage-canvas { width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
@@ -48,65 +47,76 @@
     #reactionLayer { pointer-events: none; position: absolute; inset: 0; overflow: hidden; }
 
     .glass {
-      background: color-mix(in srgb, var(--card) 86%, transparent);
+      background: color-mix(in srgb, var(--card) 82%, transparent);
       backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
       border: 1px solid var(--border);
-      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+      box-shadow: 0 3px 12px rgba(0,0,0,0.08);
     }
-    .top-left { position: absolute; top: 12px; left: 12px; display: flex; flex-direction: column; gap: 6px; z-index: 10; max-width: 290px; }
-    .name-bar { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 12px; }
+    .top-left {
+      position: absolute; top: 10px; left: 10px; z-index: 10;
+      display: flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px;
+    }
     #dogNameInput {
-      background: transparent; border: none; outline: none; font-weight: 700; font-size: 14px;
-      color: var(--foreground); width: 88px; user-select: text; -webkit-user-select: text;
+      background: transparent; border: none; outline: none; font-weight: 700; font-size: 12px;
+      color: var(--foreground); width: 64px; user-select: text; -webkit-user-select: text;
     }
     #moodBadge {
-      font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px;
+      display: none; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px;
       background: var(--secondary); color: var(--secondary-foreground); white-space: nowrap;
     }
-    .stats-bar {
-      display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 9px;
-      font-size: 12px; color: var(--muted-foreground); width: fit-content;
-    }
-    .stats-bar strong { color: var(--foreground); font-variant-numeric: tabular-nums; }
+    @media (min-width: 540px) { #moodBadge { display: inline-block; } }
 
-    .top-right { position: absolute; top: 12px; right: 12px; display: flex; gap: 6px; z-index: 10; flex-wrap: wrap; justify-content: flex-end; }
+    .top-right { position: absolute; top: 10px; right: 10px; display: flex; align-items: center; gap: 6px; z-index: 10; }
     .action-dock {
-      position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
-      display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px;
-      padding: 7px 10px; border-radius: 16px; z-index: 10; max-width: 95%;
+      position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center; justify-content: center; gap: 5px;
+      padding: 5px 8px; border-radius: 999px; z-index: 10; max-width: 96%;
+      transition: opacity 0.2s ease, transform 0.2s ease;
     }
-    .hint-badge {
-      display: none; position: absolute; bottom: 12px; left: 12px; font-size: 11px;
-      color: var(--muted-foreground); padding: 4px 10px; border-radius: 8px; pointer-events: none; z-index: 10;
-    }
-    @media (min-width: 760px) { .hint-badge { display: block; } }
 
     button {
       font: inherit; cursor: pointer; color: var(--foreground);
       background: var(--card); border: 1px solid var(--border);
       border-radius: 9px; padding: 6px 10px; font-size: 12px; font-weight: 500;
+      white-space: nowrap;
       transition: transform 0.12s ease, background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
     }
+    button.pill { border-radius: 999px; padding: 5px 10px; }
     button:hover { border-color: var(--primary); }
     button:active { transform: scale(0.96); }
     button.primary-btn { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); font-weight: 600; }
     button.secondary-btn { background: var(--secondary); color: var(--secondary-foreground); }
     button.is-active { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); font-weight: 600; }
 
-    aside {
-      width: 100%; height: 44%; flex-shrink: 0; background: var(--card);
-      border-top: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden;
+    /* Collapsible Studio Drawer: hidden by default on mobile/narrow screens so Hachi is 100% visible! */
+    body.drawer-closed #studioDrawer { display: none; }
+    #studioDrawer {
+      width: 308px; height: 100%; flex-shrink: 0; background: var(--card);
+      border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden;
     }
-    @media (min-width: 960px) {
-      aside { width: 320px; height: 100%; border-top: none; border-left: 1px solid var(--border); }
+    @media (max-width: 1023px) {
+      #studioDrawer {
+        position: fixed; left: 0; right: 0; bottom: 0; width: 100%;
+        height: 44vh; max-height: 380px; z-index: 30;
+        border-left: none; border-top: 1px solid var(--border);
+        border-top-left-radius: 18px; border-top-right-radius: 18px;
+        background: color-mix(in srgb, var(--card) 94%, transparent);
+        backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+        box-shadow: 0 -10px 30px rgba(0,0,0,0.22);
+      }
+      body.drawer-open #actionDock {
+        opacity: 0; pointer-events: none; transform: translate(-50%, 16px);
+      }
     }
+
     .panel-head {
-      padding: 12px 16px; border-bottom: 1px solid var(--border);
-      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
     }
     .panel-head h1 { margin: 0; font-size: 14px; font-weight: 700; }
-    .panel-head p { margin: 2px 0 0; font-size: 12px; color: var(--muted-foreground); }
-    .panel-scroll { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 15px; }
+    .panel-head p { margin: 2px 0 0; font-size: 11px; color: var(--muted-foreground); }
+    .panel-head strong { color: var(--foreground); font-variant-numeric: tabular-nums; }
+    .panel-scroll { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 14px; }
     .panel-scroll::-webkit-scrollbar { width: 5px; }
     .panel-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
 
@@ -136,54 +146,55 @@
     .camera-flash { position: absolute; inset: 0; background: #ffffff; z-index: 20; animation: flashFade 0.45s ease-out forwards; pointer-events: none; }
   </style>
 </head>
-<body>
+<body class="drawer-closed">
   <div id="stageContainer">
     <canvas id="glCanvas" class="stage-canvas"></canvas>
     <div id="reactionLayer"></div>
 
-    <div class="top-left">
-      <div class="name-bar glass">
-        <span aria-hidden="true">🐾</span>
-        <input id="dogNameInput" type="text" value="Hachi" maxlength="24" aria-label="Doggy name" />
-        <span id="moodBadge">Happy &amp; Wagging</span>
-      </div>
-      <div class="stats-bar glass">
-        <span>Boops: <strong id="boopCount">0</strong></span>
-        <span style="opacity:0.4">·</span>
-        <span>Pets: <strong id="petCount">0</strong></span>
-      </div>
+    <div class="top-left glass">
+      <span aria-hidden="true">🐾</span>
+      <input id="dogNameInput" type="text" value="Hachi" maxlength="24" aria-label="Doggy name" />
+      <span id="moodBadge">Happy</span>
     </div>
 
     <div class="top-right">
-      <button id="snapPhotoBtn" class="primary-btn" title="Save postcard snapshot">📸 Photo</button>
-      <button id="camFaceBtn" class="glass">Face</button>
-      <button id="camFullBtn" class="glass">Full</button>
-      <button id="spinToggleBtn" class="glass">Spin: Off</button>
+      <button id="snapPhotoBtn" class="glass pill" title="Save postcard snapshot">📸 Photo</button>
+      <button id="toggleDrawerBtn" class="primary-btn pill" title="Show or hide customize menu">✨ Menu</button>
     </div>
 
-    <div class="action-dock glass">
-      <button id="actBoop" class="primary-btn">👆 Boop</button>
-      <button id="actPet" class="secondary-btn">💛 Pet</button>
-      <button id="actTreat" class="secondary-btn">🦴 Treat</button>
-      <button id="actBark" class="secondary-btn">🔊 Speak</button>
-      <button id="actSound" title="Toggle sound">🔈</button>
+    <div id="actionDock" class="action-dock glass">
+      <button id="actBoop" class="primary-btn pill">👆 Boop</button>
+      <button id="actPet" class="secondary-btn pill">💛 Pet</button>
+      <button id="actTreat" class="secondary-btn pill">🦴 Treat</button>
+      <button id="actBark" class="secondary-btn pill">🔊 Speak</button>
+      <button id="actSound" class="pill" title="Toggle sound">🔈</button>
     </div>
-
-    <div class="hint-badge glass">Drag to orbit · Scroll / pinch to zoom · Tap Hachi's nose or head!</div>
   </div>
 
-  <aside>
+  <aside id="studioDrawer">
     <div class="panel-head">
       <div>
         <h1>Hachi 3D Studio</h1>
-        <p>Volumetric Fur &amp; Photo Dioramas</p>
+        <p>Boops: <strong id="boopCount">0</strong> · Pets: <strong id="petCount">0</strong></p>
       </div>
-      <button id="resetAllBtn">Reset</button>
+      <div style="display:flex;gap:6px;">
+        <button id="resetAllBtn">Reset</button>
+        <button id="closeDrawerBtn" class="secondary-btn">✕ Hide</button>
+      </div>
     </div>
 
     <div class="panel-scroll">
       <section>
-        <div class="sec-title">Scene (From Her Photos)</div>
+        <div class="sec-title">Camera</div>
+        <div class="grid-3">
+          <button id="camFaceBtn">Face Close</button>
+          <button id="camFullBtn">Full Body</button>
+          <button id="spinToggleBtn">Spin: Off</button>
+        </div>
+      </section>
+
+      <section>
+        <div class="sec-title">Scene</div>
         <div id="sceneGroup" class="grid-2">
           <button data-scene="balcony">🌿 Plant Balcony</button>
           <button data-scene="cozy">🛋️ Cozy Lamp</button>
@@ -556,18 +567,18 @@
       );
     }
 
-    // Wavy Maltipoo curl strand density field in coherent 3D object space
+    // Fine silky combed Maltipoo strand density field in coherent 3D object space
     float furStrandField(vec3 p, float scale, float shellH) {
-      // Gentle wavy lock offset so strands bend gracefully along height
       vec3 q = p * scale;
-      float waveX = sin(q.y * 0.65 + q.z * 0.5) * 0.45 * shellH;
-      float waveZ = cos(q.y * 0.60 - q.x * 0.5) * 0.45 * shellH;
-      vec3 sp = vec3(q.x + waveX, q.y * 0.62, q.z + waveZ);
-      // Clump waves (medium curly locks) + crisp individual micro-hair strands
-      float clump = noise3(sp * 0.72);
-      float tuft = noise3(sp * 2.15 + vec3(clump * 1.4, 0.0, -clump * 1.1));
-      float fine = noise3(sp * 4.8);
-      return clump * 0.34 + tuft * 0.44 + fine * 0.22;
+      // Gentle natural Maltipoo wave flowing smoothly downward along shell height
+      float waveX = sin(q.y * 0.42 + q.z * 0.35) * 0.36 * shellH;
+      float waveZ = cos(q.y * 0.40 - q.x * 0.35) * 0.36 * shellH;
+      // Anisotropic stretch along Y so strands read as fine combed silky hairs (not round sponge blobs!)
+      vec3 sp = vec3((q.x + waveX) * 1.48, q.y * 0.36, (q.z + waveZ) * 1.48);
+      float lock = noise3(sp * 0.95);
+      float strand = noise3(sp * 2.45 + vec3(lock * 1.1, 0.0, -lock * 0.9));
+      float micro = noise3(sp * 5.2);
+      return lock * 0.24 + strand * 0.46 + micro * 0.30;
     }
 
     vec3 filmic(vec3 c) {
@@ -596,40 +607,43 @@
         return;
       }
 
-      // 0: Volumetric Multi-Shell Fluffy Fur!
+      // 0: 20-Layer Combed Velvety Volumetric Fur!
       if (uMatType == 0) {
         float density = furStrandField(vObjPos, uFurScale, uShellLayer);
+        float shellAlpha = 1.0;
         if (uShellLayer > 0.001) {
-          // Taper fuzzy hair strands smoothly as shell rises from root (0) to wispy tips (1)
-          float cutoff = mix(0.24, 0.71, pow(uShellLayer, 0.88));
-          if (density < cutoff) discard;
+          // Smooth tapered silky tips (soft alpha fade instead of harsh terraced discard steps!)
+          float cutoff = mix(0.20, 0.72, pow(uShellLayer, 0.92));
+          shellAlpha = smoothstep(cutoff - 0.04, cutoff + 0.15, density);
+          shellAlpha *= (1.0 - 0.32 * uShellLayer * uShellLayer);
+          if (shellAlpha < 0.05) discard;
         }
 
-        // Subtle strand normal wobble for silky light catch across waves
-        float nShift = (density - 0.5) * 0.55;
-        N = normalize(N + vec3(nShift * 0.4, nShift * 0.2, -nShift * 0.35));
+        // Fine strand normal perturbation for subtle silky hair shimmer
+        float nShift = (density - 0.5) * 0.48;
+        N = normalize(N + vec3(nShift * 0.35, nShift * 0.16, -nShift * 0.32));
 
-        // Root-to-tip shading: warm toasted undercoat at root -> luminous soft cream tips!
-        float rootAO = mix(0.72, 1.06, pow(uShellLayer, 0.65));
-        vec3 coatCol = mix(uTipColor, uBaseColor, clamp(uShellLayer * 0.72 + density * 0.38, 0.0, 1.0)) * vColor;
+        // Soft velvety root-to-tip ambient occlusion & luminous cream-ivory gradient
+        float rootAO = mix(0.70, 0.97, pow(uShellLayer, 0.58));
+        vec3 coatCol = mix(uTipColor, uBaseColor, clamp(uShellLayer * 0.64 + density * 0.36, 0.0, 1.0)) * vColor;
 
-        // Soft subsurface-wrapped hair lighting (Kajiya-Kay inspired soft scatter)
-        float ndlKey = clamp((dot(N, Lkey) + 0.42) / 1.42, 0.0, 1.0);
+        // Soft subsurface-wrapped hair lighting
+        float ndlKey = clamp((dot(N, Lkey) + 0.40) / 1.40, 0.0, 1.0);
         float ndlFill = clamp((dot(N, Lfill) + 0.50) / 1.50, 0.0, 1.0);
         float hemi = N.y * 0.5 + 0.5;
         vec3 ambient = mix(uAmbGround, uAmbSky, hemi);
 
-        // Golden sunlit rim fuzz on outer shell layers (like Hachi on the sunny balcony!)
-        float fresnel = pow(1.0 - max(dot(N, V), 0.0), 2.3);
+        // Downy sunlit backlit halo on outer fuzzy tips (soft ivory sheen, never clipped)
+        float fresnel = pow(1.0 - max(dot(N, V), 0.0), 2.8);
         float rimBack = clamp(dot(N, Lrim) * 0.55 + 0.45, 0.0, 1.0);
-        vec3 rimGlow = uRimCol * fresnel * rimBack * (0.20 + 0.36 * uShellLayer);
+        vec3 rimGlow = uRimCol * fresnel * rimBack * (0.08 + 0.16 * uShellLayer);
 
-        // Silky hair glint along wave crests
+        // Subtle silky specular sheen
         vec3 H = normalize(Lkey + V);
-        float silk = pow(max(dot(N, H), 0.0), 16.0) * 0.09 * uShellLayer * density;
+        float silk = pow(max(dot(N, H), 0.0), 22.0) * 0.06 * uShellLayer * density;
 
-        vec3 lit = coatCol * (ambient * 0.48 + uKeyCol * ndlKey * 0.58 + uFillCol * ndlFill * 0.20) * rootAO + rimGlow + uKeyCol * silk;
-        gl_FragColor = vec4(filmic(lit), uAlpha);
+        vec3 lit = coatCol * (ambient * 0.48 + uKeyCol * ndlKey * 0.49 + uFillCol * ndlFill * 0.21) * rootAO + rimGlow + uKeyCol * silk;
+        gl_FragColor = vec4(filmic(lit), shellAlpha * uAlpha);
         return;
       }
 
@@ -1210,9 +1224,9 @@
       segU: 24, segV: 16,
       furNoise: 0.012, freq: 6.5, seed: 2.1,
       colorFn: (x, y, z) => {
-        // Warm golden-apricot saddle along upper back (WA0033, WA0041)
+        // Gentle warm cream-apricot saddle along upper back (WA0033, WA0041)
         const backWarm = smoothstepJS(-0.02, 0.20, y) * smoothstepJS(0.25, -0.24, z);
-        return [lerp(1.0, 0.95, backWarm), lerp(0.99, 0.88, backWarm), lerp(0.96, 0.77, backWarm)];
+        return [lerp(1.0, 0.97, backWarm), lerp(0.99, 0.93, backWarm), lerp(0.97, 0.85, backWarm)];
       },
       deformFn: (x, y, z) => {
         const chest = Math.exp(-Math.pow((z - 0.21) * 3.0, 2));
@@ -1226,7 +1240,7 @@
       cx: 0, cy: 0.155, cz: 0.245,
       segU: 18, segV: 12,
       furNoise: 0.010, freq: 7.5, seed: 5.4,
-      colorFn: () => [1.0, 0.98, 0.95]
+      colorFn: () => [1.0, 0.99, 0.97]
     });
     // Rounded haunches
     for (const s of [-1, 1]) {
@@ -1235,142 +1249,139 @@
         cx: s * 0.122, cy: -0.02, cz: -0.285,
         segU: 14, segV: 10,
         furNoise: 0.010, freq: 6.8, seed: 3.3 + s,
-        colorFn: () => [0.98, 0.92, 0.84]
+        colorFn: () => [0.99, 0.96, 0.91]
       });
     }
     return mb.upload();
   }
 
-  // --- 5B. HACHI'S HEAD (Refined Real-Life Likeness: Deeper-Set Eyes, Wide Fluffy Muzzle!) ---
+  // --- 5B. HACHI'S HEAD (True-to-Photo Likeness: Soft Parted Crown, Soulful Tucked Eyes, Wide Cream-Biscuit Muzzle!) ---
   function buildHeadCoreMesh() {
     const mb = new MeshBuilder();
-    // Soft cushion-oval cranium (WA0022, WA0023, WA0036, WA0039)
+    // Soft cushion-oval cranium with subtle natural center hair part valley on forehead (WA0022, WA0036, WA0039)
     mb.addSculptedSphere({
-      rx: 0.238, ry: 0.222, rz: 0.228,
+      rx: 0.242, ry: 0.224, rz: 0.232,
       cx: 0, cy: 0.032, cz: 0.008,
-      segU: 26, segV: 18,
-      furNoise: 0.011, freq: 7.0, seed: 1.4,
-      colorFn: (x, y) => {
-        const topBright = smoothstepJS(0.06, 0.22, y);
-        return [lerp(0.98, 1.02, topBright), lerp(0.94, 1.00, topBright), lerp(0.88, 0.97, topBright)];
+      segU: 28, segV: 20,
+      furNoise: 0.009, freq: 7.5, seed: 1.4,
+      colorFn: (x, y, z) => {
+        const topBright = smoothstepJS(0.05, 0.22, y);
+        const snoutWarm = smoothstepJS(0.10, 0.22, z) * smoothstepJS(0.04, -0.06, y);
+        return [
+          lerp(lerp(1.00, 1.02, topBright), 0.98, snoutWarm),
+          lerp(lerp(0.98, 1.01, topBright), 0.93, snoutWarm),
+          lerp(lerp(0.94, 0.99, topBright), 0.85, snoutWarm)
+        ];
       },
       deformFn: (x, y, z) => {
-        // Deeper eye-socket sculpting so Hachi's soulful eyes sit naturally inside her facial fluff!
-        const eyeL = Math.exp(-((x + 0.100)**2 + (y - 0.052)**2 + (z - 0.185)**2) * 52.0);
-        const eyeR = Math.exp(-((x - 0.100)**2 + (y - 0.052)**2 + (z - 0.185)**2) * 52.0);
-        return [x, y, z - (eyeL + eyeR) * 0.040];
+        // Gentle eye-socket nestling so soulful eyes look deeply embedded & loving
+        const eyeL = Math.exp(-((x + 0.096)**2 + (y - 0.050)**2 + (z - 0.188)**2) * 56.0);
+        const eyeR = Math.exp(-((x - 0.096)**2 + (y - 0.050)**2 + (z - 0.188)**2) * 56.0);
+        // Subtle natural center hair part valley down the upper crown
+        const partValley = Math.exp(-x * x * 240.0) * smoothstepJS(0.10, 0.22, y) * smoothstepJS(-0.04, 0.15, z) * 0.014;
+        return [x, y - partValley, z - (eyeL + eyeR) * 0.038];
       }
     });
 
-    // Soft parted forehead volume (slightly fuller cream clouds on left & right of center part!)
+    // Softly parted left & right crown bangs sweeping smoothly outward over upper brows (WA0022, WA0036, WA0039!)
     for (const s of [-1, 1]) {
       mb.addSculptedSphere({
-        rx: 0.135, ry: 0.088, rz: 0.132,
-        cx: s * 0.082, cy: 0.192, cz: 0.038,
-        rotZ: -s * 0.22,
-        segU: 16, segV: 12,
-        furNoise: 0.010, freq: 8.0, seed: 2.8 + s,
-        colorFn: () => [1.02, 1.00, 0.97]
+        rx: 0.145, ry: 0.088, rz: 0.142,
+        cx: s * 0.088, cy: 0.188, cz: 0.042,
+        rotZ: -s * 0.28, rotY: s * 0.14,
+        segU: 18, segV: 14,
+        furNoise: 0.008, freq: 8.5, seed: 2.8 + s,
+        colorFn: () => [1.02, 1.01, 0.98]
+      });
+      // Soft downward-sweeping brow arch framing above each eye (leaves soulful eyes 100% clear!)
+      mb.addSculptedSphere({
+        rx: 0.080, ry: 0.042, rz: 0.072,
+        cx: s * 0.112, cy: 0.138, cz: 0.156,
+        rotZ: -s * 0.30,
+        segU: 14, segV: 10,
+        furNoise: 0.007, freq: 9.0, seed: 5.1 + s,
+        colorFn: () => [1.01, 0.99, 0.95]
       });
     }
 
-    // Warm toasted-biscuit upper snout bridge (WA0022, WA0023, WA0044)
+    // Soft cream-biscuit upper snout bridge (slightly recessed so heart nose sits cleanly proud!)
     mb.addSculptedSphere({
-      rx: 0.106, ry: 0.075, rz: 0.118,
-      cx: 0, cy: -0.014, cz: 0.186,
-      segU: 18, segV: 12,
-      furNoise: 0.008, freq: 9.0, seed: 7.2,
-      colorFn: () => [0.97, 0.87, 0.74]
+      rx: 0.104, ry: 0.072, rz: 0.114,
+      cx: 0, cy: -0.015, cz: 0.172,
+      segU: 20, segV: 14,
+      furNoise: 0.007, freq: 9.5, seed: 7.2,
+      colorFn: () => [0.98, 0.92, 0.83]
     });
 
-    // Wider horizontal fluffy mustache / whisker cushions (signature Hachi expression in WA0023 & WA0044!)
+    // Wide horizontal fluffy mustache / whisker pillows (iconic Hachi silhouette in WA0023 & WA0044!)
     for (const s of [-1, 1]) {
       mb.addSculptedSphere({
-        rx: 0.108, ry: 0.078, rz: 0.095,
-        cx: s * 0.088, cy: -0.052, cz: 0.192,
-        segU: 16, segV: 12,
-        furNoise: 0.010, freq: 9.5, seed: 4.5 + s,
-        colorFn: () => [0.97, 0.88, 0.76]
+        rx: 0.114, ry: 0.074, rz: 0.094,
+        cx: s * 0.090, cy: -0.056, cz: 0.184,
+        rotZ: -s * 0.16,
+        segU: 18, segV: 14,
+        furNoise: 0.009, freq: 9.5, seed: 4.5 + s,
+        colorFn: (x) => {
+          const outer = smoothstepJS(0.05, 0.18, Math.abs(x));
+          return [lerp(0.98, 1.01, outer), lerp(0.92, 0.97, outer), lerp(0.84, 0.92, outer)];
+        }
       });
-      // Soft cheek fluff framing lower face
+      // Soft pillowy cheek fluff connecting mustache smoothly into drooping ears
       mb.addSculptedSphere({
-        rx: 0.132, ry: 0.108, rz: 0.118,
-        cx: s * 0.148, cy: -0.052, cz: 0.082,
-        segU: 16, segV: 12,
-        furNoise: 0.012, freq: 8.0, seed: 8.1 + s,
-        colorFn: () => [0.99, 0.96, 0.90]
+        rx: 0.135, ry: 0.112, rz: 0.122,
+        cx: s * 0.150, cy: -0.054, cz: 0.080,
+        segU: 18, segV: 14,
+        furNoise: 0.010, freq: 8.0, seed: 8.1 + s,
+        colorFn: () => [1.00, 0.98, 0.94]
       });
     }
 
-    // Soft chin beard
+    // Soft cream-honey chin beard tucked under lower lip
     mb.addSculptedSphere({
-      rx: 0.092, ry: 0.072, rz: 0.088,
-      cx: 0, cy: -0.132, cz: 0.160,
-      segU: 16, segV: 12,
-      furNoise: 0.010, freq: 9.0, seed: 9.3,
-      colorFn: () => [0.94, 0.84, 0.71]
+      rx: 0.094, ry: 0.074, rz: 0.088,
+      cx: 0, cy: -0.140, cz: 0.150,
+      segU: 18, segV: 12,
+      furNoise: 0.009, freq: 9.0, seed: 9.3,
+      colorFn: () => [0.97, 0.91, 0.82]
     });
 
     return mb.upload();
   }
 
-  // Silky alpha-feathered hair cards blending seamlessly into Hachi's volumetric fur!
   function buildHeadHairCardsMesh() {
     const mb = new MeshBuilder();
-    for (const s of [-1, 1]) {
-      // Soft parted crown wisps flowing gently to the sides (WA0022, WA0036, WA0039)
-      for (let i = 0; i < 3; i++) {
-        const t = i / 2;
-        mb.addHairCard({
-          ox: s * (0.03 + t * 0.05),
-          oy: 0.228 - t * 0.02,
-          oz: 0.115 - t * 0.05,
-          dx: s * (0.86 + t * 0.14), dy: -0.58, dz: 0.22 - t * 0.25,
-          outX: s * 0.35, outY: 0.55, outZ: 0.72,
-          length: 0.155, width: 0.115, arch: 0.024, curl: -0.010,
-          color: [0.92, 0.86, 0.76]
-        });
-      }
-      // Soft cheek side-fluff blending into floppy ears
-      mb.addHairCard({
-        ox: s * 0.165, oy: -0.025, oz: 0.11,
-        dx: s * 0.42, dy: -0.90, dz: 0.16,
-        outX: s * 0.75, outY: 0.0, outZ: 0.62,
-        length: 0.15, width: 0.105, arch: 0.020, curl: 0.010,
-        color: [0.92, 0.85, 0.74]
-      });
-    }
+    mb.addSculptedSphere({ rx: 0.001, ry: 0.001, rz: 0.001, segU: 4, segV: 4 });
     return mb.upload();
   }
 
   // Delicate fine curved facial whiskers + soft dark eye-rim liner (WA0027 & WA0044!)
   function buildFacialDetailsMesh() {
     const mb = new MeshBuilder();
-    const whiskerCol = [0.92, 0.86, 0.78];
-    const rimCol = [0.16, 0.10, 0.09];
+    const whiskerCol = [0.94, 0.90, 0.84];
+    const rimCol = [0.14, 0.08, 0.07];
     for (const s of [-1, 1]) {
-      // Soft dark espresso eye-rim framing around each eye (makes eyes look deeply soulful & natural)
+      // Soft dark espresso eye-rim framing cleanly around each eye
       mb.addTube({
         spineFn: (t) => {
           const a = t * Math.PI * 2;
-          return [s * 0.100 + Math.cos(a) * 0.044, 0.052 + Math.sin(a) * 0.042, 0.194 + Math.cos(a * 2) * 0.004];
+          return [s * 0.098 + Math.cos(a) * 0.045, 0.056 + Math.sin(a) * 0.042, 0.214 + Math.cos(a * 2) * 0.004];
         },
-        radiusFn: () => 0.0075,
+        radiusFn: () => 0.0078,
         segL: 20, segR: 6, capStart: false, capEnd: false,
         colorFn: () => rimCol
       });
       // 5 delicate fine curved whiskers per cheek
       for (let i = 0; i < 5; i++) {
-        const yOff = -0.026 - i * 0.014;
-        const zOff = 0.248 - i * 0.008;
+        const yOff = -0.028 - i * 0.014;
+        const zOff = 0.268 - i * 0.008;
         const ang = (i - 2) * 0.16;
         mb.addTube({
           spineFn: (t) => [
-            s * (0.072 + t * 0.145),
+            s * (0.076 + t * 0.155),
             yOff + t * ang * 0.09 - t * t * 0.032,
             zOff + Math.sin(t * Math.PI * 0.7) * 0.018 - t * 0.04
           ],
-          radiusFn: (t) => 0.0024 * (1 - t * 0.7),
+          radiusFn: (t) => 0.0022 * (1 - t * 0.7),
           segL: 6, segR: 4, capStart: false, capEnd: false,
           colorFn: () => whiskerCol
         });
@@ -1379,21 +1390,28 @@
     return mb.upload();
   }
 
-  // --- 5C. FLOPPY EARS (Volumetric Fur Core + Lush Silky Feathered Hair Cards!) ---
+  // --- 5C. NATURAL DROOPING HONEY-CREAM FLOPPY EARS (Single Seamless Silky Bell — ZERO Crease!) ---
   function buildEarCoreMesh() {
     const mb = new MeshBuilder();
-    mb.addSculptedSphere({
-      rx: 0.078, ry: 0.162, rz: 0.112,
-      cx: 0.048, cy: -0.135, cz: 0.0,
-      segU: 16, segV: 12,
-      furNoise: 0.010, freq: 8.0, seed: 6.2,
-      colorFn: (x, y) => {
-        const tip = smoothstepJS(0.0, -0.26, y);
-        return [lerp(1.0, 0.94, tip), lerp(0.97, 0.84, tip), lerp(0.91, 0.71, tip)];
+    mb.addTube({
+      spineFn: (t) => [
+        0.008 + Math.sin(t * Math.PI * 0.62) * 0.085 + t * 0.052,
+        -t * 0.335,
+        0.014 - t * 0.022 + Math.sin(t * Math.PI) * 0.016
+      ],
+      radiusFn: (t) => {
+        // Single continuous lush bell profile (smooth rounded top fold -> plump soft wavy bottom!)
+        const bell = Math.sin(Math.pow(clamp(t, 0.02, 0.98), 0.72) * Math.PI);
+        const widthZ = 0.068 + bell * 0.072;
+        const thickX = 0.044 + bell * 0.038;
+        return [thickX, widthZ];
       },
-      deformFn: (x, y, z) => {
-        const t = clamp((-y) / 0.28, 0, 1);
-        return [x * (0.76 + t * 0.30) + t * 0.038, y, z * (0.68 + t * 0.44)];
+      segL: 20, segR: 18,
+      capStart: true, capEnd: true,
+      colorFn: (t) => {
+        // Luminous ivory-cream near crown -> soft honey-cream tips (WA0022, WA0039)
+        const tip = smoothstepJS(0.18, 0.95, t);
+        return [lerp(1.01, 0.96, tip), lerp(0.99, 0.88, tip), lerp(0.95, 0.76, tip)];
       }
     });
     return mb.upload();
@@ -1401,24 +1419,7 @@
 
   function buildEarHairCardsMesh() {
     const mb = new MeshBuilder();
-    // Cascading layers of silky feathered hair cards draping down & flaring gently outward!
-    for (let layer = 0; layer < 2; layer++) {
-      for (let i = 0; i < 6; i++) {
-        const a = (i / 5) * Math.PI * 1.1 - 0.55;
-        const zOff = Math.sin(a) * 0.092;
-        const yOff = -0.02 - layer * 0.095;
-        const xOff = 0.068 + Math.cos(a) * 0.035 + layer * 0.018;
-        mb.addHairCard({
-          ox: xOff, oy: yOff, oz: zOff,
-          dx: 0.36 + layer * 0.10, dy: -0.92, dz: zOff * 0.85,
-          outX: 0.82, outY: 0.05, outZ: Math.sin(a) * 0.58,
-          length: 0.21 + layer * 0.04,
-          width: 0.135,
-          arch: 0.032, curl: 0.022,
-          color: layer === 0 ? [1.0, 0.96, 0.88] : [0.95, 0.85, 0.72]
-        });
-      }
-    }
+    mb.addSculptedSphere({ rx: 0.001, ry: 0.001, rz: 0.001, segU: 4, segV: 4 });
     return mb.upload();
   }
 
@@ -1426,18 +1427,18 @@
   function buildNoseMesh() {
     const mb = new MeshBuilder();
     mb.addSculptedSphere({
-      rx: 0.058, ry: 0.043, rz: 0.040,
+      rx: 0.063, ry: 0.047, rz: 0.044,
       segU: 22, segV: 16,
       deformFn: (x, y, z) => {
-        const nx = x / 0.058, ny = y / 0.043, nz = z / 0.040;
+        const nx = x / 0.063, ny = y / 0.047, nz = z / 0.044;
         const heartW = 1.0 + ny * 0.16 - (ny < 0 ? Math.abs(ny) * 0.22 : 0);
         const cleft = Math.exp(-nx * nx * 28.0) * (ny < 0.2 ? 0.008 : 0.004);
-        const nL = Math.exp(-((nx + 0.42)**2 * 16.0 + (ny + 0.14)**2 * 22.0)) * (nz > 0.2 ? 0.014 : 0);
-        const nR = Math.exp(-((nx - 0.42)**2 * 16.0 + (ny + 0.14)**2 * 22.0)) * (nz > 0.2 ? 0.014 : 0);
+        const nL = Math.exp(-((nx + 0.42)**2 * 16.0 + (ny + 0.14)**2 * 22.0)) * (nz > 0.2 ? 0.015 : 0);
+        const nR = Math.exp(-((nx - 0.42)**2 * 16.0 + (ny + 0.14)**2 * 22.0)) * (nz > 0.2 ? 0.015 : 0);
         return [x * heartW, y, z - cleft - nL - nR];
       },
       colorFn: (x, y, z) => {
-        const nx = x / 0.058, ny = y / 0.043, nz = z / 0.040;
+        const nx = x / 0.063, ny = y / 0.047, nz = z / 0.044;
         const nL = Math.exp(-((nx + 0.42)**2 * 18.0 + (ny + 0.14)**2 * 24.0)) * (nz > 0.1 ? 1 : 0);
         const nR = Math.exp(-((nx - 0.42)**2 * 18.0 + (ny + 0.14)**2 * 24.0)) * (nz > 0.1 ? 1 : 0);
         const dark = 1.0 - clamp((nL + nR) * 0.85, 0, 0.85);
@@ -1535,34 +1536,29 @@
     return mb.upload();
   }
 
-  // --- 5F. PLUMED TAIL (Volumetric Fur Core + Fanning Silky Feather Hair Cards!) ---
+  // --- 5F. PLUMED CURLED TAIL (Lush Volumetric Honey-Cream Plume!) ---
   function buildTailCoreMesh() {
     const mb = new MeshBuilder();
     mb.addTube({
-      spineFn: (t) => [0, t * 0.24 + Math.sin(t * Math.PI * 0.85) * 0.10, -t * 0.24 + Math.pow(t, 2.2) * 0.26],
-      radiusFn: (t) => 0.056 * (1 - t * 0.35) + 0.016,
-      segL: 12, segR: 12,
-      colorFn: (t) => [lerp(0.99, 0.94, t), lerp(0.94, 0.83, t), lerp(0.86, 0.70, t)]
+      spineFn: (t) => [0, t * 0.25 + Math.sin(t * Math.PI * 0.85) * 0.11, -t * 0.25 + Math.pow(t, 2.2) * 0.28],
+      radiusFn: (t) => [0.062 + Math.sin(t * Math.PI * 0.9) * 0.036, 0.056 + Math.sin(t * Math.PI * 0.9) * 0.032],
+      segL: 16, segR: 16,
+      colorFn: (t) => [lerp(1.0, 0.96, t), lerp(0.98, 0.89, t), lerp(0.94, 0.78, t)]
+    });
+    // Soft fanned plume puff at top-mid curve
+    mb.addSculptedSphere({
+      rx: 0.088, ry: 0.075, rz: 0.098,
+      cx: 0, cy: 0.295, cz: -0.04,
+      segU: 16, segV: 12,
+      furNoise: 0.010, freq: 8.5, seed: 7.7,
+      colorFn: () => [0.97, 0.90, 0.80]
     });
     return mb.upload();
   }
 
   function buildTailHairCardsMesh() {
     const mb = new MeshBuilder();
-    for (let i = 0; i < 8; i++) {
-      const t = 0.20 + (i / 7) * 0.80;
-      const sy = t * 0.24 + Math.sin(t * Math.PI * 0.85) * 0.10;
-      const sz = -t * 0.24 + Math.pow(t, 2.2) * 0.26;
-      for (const side of [-1, 1]) {
-        mb.addHairCard({
-          ox: side * 0.018, oy: sy, oz: sz,
-          dx: side * 0.42, dy: -0.52 + t * 0.22, dz: -0.78 + t * 0.55,
-          outX: side * 0.65, outY: 0.45, outZ: -0.55,
-          length: 0.19 + t * 0.05, width: 0.125, arch: 0.028, curl: -0.02,
-          color: [0.99, 0.92, 0.81]
-        });
-      }
-    }
+    mb.addSculptedSphere({ rx: 0.001, ry: 0.001, rz: 0.001, segU: 4, segV: 4 });
     return mb.upload();
   }
 
@@ -1958,34 +1954,34 @@
 
   const COAT_PALETTES = {
     shaggy: {
-      base: [1.10, 1.02, 0.89],
-      tip:  [0.95, 0.80, 0.62],
-      noseBase: [0.18, 0.10, 0.09],
-      noseTip:  [0.48, 0.28, 0.24],
-      furScale: 17.5,
-      furLength: 0.058,
-      furDroop: 0.026,
-      showCards: true,
+      base: [0.98, 0.94, 0.87],
+      tip:  [0.88, 0.79, 0.67],
+      noseBase: [0.16, 0.09, 0.08],
+      noseTip:  [0.44, 0.25, 0.21],
+      furScale: 24.5,
+      furLength: 0.042,
+      furDroop: 0.022,
+      showCards: false,
     },
     puppycut: {
-      base: [1.12, 1.05, 0.93],
-      tip:  [0.97, 0.84, 0.68],
-      noseBase: [0.17, 0.10, 0.09],
-      noseTip:  [0.44, 0.26, 0.22],
-      furScale: 24.0,
-      furLength: 0.036,
-      furDroop: 0.010,
+      base: [0.99, 0.96, 0.90],
+      tip:  [0.90, 0.83, 0.72],
+      noseBase: [0.15, 0.09, 0.08],
+      noseTip:  [0.40, 0.23, 0.19],
+      furScale: 30.0,
+      furLength: 0.025,
+      furDroop: 0.008,
       showCards: false,
     },
     baby2012: {
-      base: [0.90, 0.57, 0.28],
-      tip:  [0.65, 0.36, 0.15],
-      noseBase: [0.14, 0.09, 0.08],
-      noseTip:  [0.28, 0.16, 0.13],
-      furScale: 20.5,
-      furLength: 0.048,
-      furDroop: 0.018,
-      showCards: true,
+      base: [0.84, 0.52, 0.24],
+      tip:  [0.58, 0.31, 0.12],
+      noseBase: [0.13, 0.08, 0.07],
+      noseTip:  [0.26, 0.15, 0.12],
+      furScale: 26.5,
+      furLength: 0.036,
+      furDroop: 0.015,
+      showCards: false,
     }
   };
 
@@ -2067,10 +2063,10 @@
   };
 
   // =========================================================================
-  // 7. Rendering Pipeline & Volumetric Shell Drawer
+  // 7. Rendering Pipeline & 20-Layer Velvety Shell Fur Drawer
   // =========================================================================
   const projMat = M4.create(), viewMat = M4.create(), normMat = new Float32Array(9), invVP = M4.create(), tmpMat = M4.create();
-  const SHELL_COUNT = 12;
+  const SHELL_COUNT = 20;
 
   function bindMeshBuffers(mesh) {
     gl.bindBuffer(gl.ARRAY_BUFFER, mesh.posBuf);
@@ -2117,8 +2113,8 @@
     gl.drawElements(gl.TRIANGLES, mesh.count, gl.UNSIGNED_SHORT, 0);
   }
 
-  // Volumetric Multi-Shell Fur Drawer (binds buffers ONCE, draws base + 12 extruded fuzzy shells!)
-  function drawVolumetricFur(mesh, modelMat, pal, shells = SHELL_COUNT, lenScale = 1.0) {
+  // 20-Layer Velvety Volumetric Fur Drawer (crisp depth occlusion on inner coat + silky alpha halo on outer tips!)
+  function drawVolumetricFur(mesh, modelMat, pal, shells = SHELL_COUNT, lenScale = 1.0, droopScale = 1.0) {
     gl.uniformMatrix4fv(loc.uModel, false, modelMat);
     M4.normalMat3(normMat, modelMat);
     gl.uniformMatrix3fv(loc.uNormalMat, false, normMat);
@@ -2129,14 +2125,17 @@
     gl.uniform1f(loc.uAlpha, 1.0);
     gl.uniform1f(loc.uUseTex, 0.0);
     gl.uniform1f(loc.uFurLength, rig.furLength * lenScale);
-    gl.uniform1f(loc.uFurDroop, pal.furDroop * lenScale);
+    gl.uniform1f(loc.uFurDroop, pal.furDroop * lenScale * droopScale);
     gl.uniform3f(loc.uFurSway, springs.furSwayX.val, springs.furSwayY.val, 0.0);
 
     bindMeshBuffers(mesh);
+    const softStart = Math.floor(shells * 0.58);
     for (let i = 0; i <= shells; i++) {
+      gl.depthMask(i <= softStart);
       gl.uniform1f(loc.uShellLayer, shells > 0 ? i / shells : 0.0);
       gl.drawElements(gl.TRIANGLES, mesh.count, gl.UNSIGNED_SHORT, 0);
     }
+    gl.depthMask(true);
   }
 
   let isLightTheme = true;
@@ -2298,14 +2297,18 @@
     const targetLookPitch = cam.hovering ? clamp(-cam.pointerY * 0.18, -0.18, 0.18) : 0;
     rig.headYaw = lerp(rig.headYaw, targetLookYaw, Math.min(1, dt * 5.0));
 
-    // Camera smooth orbit + velocity for real spring inertia!
+    // Camera smooth orbit + velocity + unobstructed responsive framing!
+    const aspect = canvas.width / Math.max(1, canvas.height);
+    const portraitBoost = aspect < 0.9 ? (0.9 - aspect) * 1.45 : 0.0;
+    const mobileDrawerUp = (window.innerWidth < 1024 && document.body.classList.contains('drawer-open')) ? -0.34 : 0.0;
+
     if (state.autoSpin && !isDragging) cam.goalYaw += dt * 0.42;
     cam.prevYaw = cam.yaw;
     cam.yaw = lerp(cam.yaw, cam.goalYaw, Math.min(1, dt * 10));
     cam.pitch = lerp(cam.pitch, cam.goalPitch, Math.min(1, dt * 10));
-    cam.dist = lerp(cam.dist, cam.goalDist, Math.min(1, dt * 10));
+    cam.dist = lerp(cam.dist, cam.goalDist + portraitBoost, Math.min(1, dt * 10));
     const camElevOffset = (showCushion || state.scene === 'swing') ? 0.16 : 0.0;
-    cam.targetY = lerp(cam.targetY, cam.goalTargetY + camElevOffset, Math.min(1, dt * 8));
+    cam.targetY = lerp(cam.targetY, cam.goalTargetY + camElevOffset + mobileDrawerUp, Math.min(1, dt * 8));
 
     const yawVel = clamp((cam.yaw - cam.prevYaw) / Math.max(dt, 0.008), -4.0, 4.0);
     const bounceImpulse = (state.petTimer > 0 ? 0.16 : 0) + (state.barkTimer > 0 ? 0.24 : 0) + (state.pose === 'walk' ? Math.sin(elapsed * 13.6) * 0.08 : 0);
@@ -2324,7 +2327,6 @@
     const cz = Math.cos(cam.yaw) * Math.cos(cam.pitch) * cam.dist;
     cam.pos = [cx, cy, cz];
 
-    const aspect = canvas.width / Math.max(1, canvas.height);
     M4.perspective(projMat, 38 * Math.PI / 180, aspect, 0.1, 35.0);
     M4.lookAt(viewMat, cam.pos, [0, cam.targetY, 0.06], [0, 1, 0]);
     M4.multiply(tmpMat, projMat, viewMat);
@@ -2441,7 +2443,7 @@
       const uDraw = M4.create();
       M4.copy(uDraw, upperM);
       M4.scale(uDraw, uDraw, rig.coatScale, 1, rig.coatScale);
-      drawVolumetricFur(upperMesh, uDraw, pal, 8, 0.78);
+      drawVolumetricFur(upperMesh, uDraw, pal, 14, 0.85, 1.0);
 
       // Elbow / Knee Joint
       const lowerM = M4.create();
@@ -2451,7 +2453,7 @@
       const lDraw = M4.create();
       M4.copy(lDraw, lowerM);
       M4.scale(lDraw, lDraw, rig.coatScale, 1, rig.coatScale);
-      drawVolumetricFur(meshes.lowerLeg, lDraw, pal, 9, 0.80);
+      drawVolumetricFur(meshes.lowerLeg, lDraw, pal, 14, 0.88, 1.05);
 
       // Paw Joint (counter-rotates subtly so paws sit flatter on floor/cushion!)
       const pawM = M4.create();
@@ -2459,21 +2461,21 @@
       M4.translate(pawM, pawM, 0, -0.225, 0.01);
       const pawLevel = clamp(-(rig.bodyPitch + uPitch + lPitch) * 0.55, -0.55, 0.55);
       M4.rotateX(pawM, pawM, pawLevel);
-      drawVolumetricFur(meshes.paw, pawM, pal, 7, 0.65);
+      drawVolumetricFur(meshes.paw, pawM, pal, 12, 0.72, 0.6);
     };
     drawArticulatedLeg(meshes.upperFront, -0.135, -0.06, 0.22, rig.flU, rig.flL, -rig.flOut);
     drawArticulatedLeg(meshes.upperFront,  0.135, -0.06, 0.22, rig.frU, rig.frL,  rig.frOut);
     drawArticulatedLeg(meshes.upperBack,  -0.145, -0.05, -0.29, rig.blU, rig.blL, -rig.blOut);
     drawArticulatedLeg(meshes.upperBack,   0.145, -0.05, -0.29, rig.brU, rig.brL,  rig.brOut);
 
-    // Plumed Tail with Spring Lag
+    // Plumed Curled Tail with Spring Lag (18 velvety shells + extra lush plume droop!)
     const tailM = M4.create();
     M4.copy(tailM, bodyM);
     M4.translate(tailM, tailM, 0, 0.10, -0.39);
     M4.rotateX(tailM, tailM, rig.tailPitch);
     M4.rotateY(tailM, tailM, tailLag);
     M4.rotateZ(tailM, tailM, tailLag * 0.45);
-    drawVolumetricFur(meshes.tailCore, tailM, pal, 10, 0.95);
+    drawVolumetricFur(meshes.tailCore, tailM, pal, 18, 1.18, 1.35);
 
     // Head Group
     const headM = M4.create();
@@ -2488,30 +2490,30 @@
     const headFurM = M4.create();
     M4.copy(headFurM, headM);
     M4.scale(headFurM, headFurM, rig.coatScale, rig.coatScale * 0.99, rig.coatScale);
-    drawVolumetricFur(meshes.headCore, headFurM, pal, SHELL_COUNT, 0.95);
+    drawVolumetricFur(meshes.headCore, headFurM, pal, SHELL_COUNT, 0.96, 1.05);
     hitSpheres.head.pos = M4.transformPoint(headM, 0, 0.03, 0.05);
 
-    // Floppy Feathered Ears with Real Spring Physics!
+    // Natural Drooping Honey-Cream Floppy Ears with Spring Physics (18 velvety combed shells!)
     const earMats = [];
     for (const s of [-1, 1]) {
       const earM = M4.create();
       M4.copy(earM, headM);
-      M4.translate(earM, earM, s * 0.195, 0.122, 0.01);
+      M4.translate(earM, earM, s * 0.195, 0.118, 0.008);
       M4.rotateZ(earM, earM, s * (s < 0 ? earSpringL : earSpringR));
-      M4.rotateX(earM, earM, -0.06 + (state.pose === 'walk' ? Math.sin(elapsed * 6.8) * 0.08 : 0));
+      M4.rotateX(earM, earM, -0.05 + (state.pose === 'walk' ? Math.sin(elapsed * 6.8) * 0.08 : 0));
       M4.scale(earM, earM, s * rig.earScale, rig.earScale, rig.earScale);
-      drawVolumetricFur(meshes.earCore, earM, pal, 10, 0.85);
+      drawVolumetricFur(meshes.earCore, earM, pal, 18, 1.15, 1.65);
       earMats.push(earM);
     }
 
-    // Boopable Wet Heart-Shaped Nose
+    // Boopable Wet Heart-Shaped Nose (positioned cleanly proud of muzzle fur shells!)
     const boopSquish = state.boopTimer > 1.05 ? Math.sin(((state.boopTimer - 1.05) / 0.45) * Math.PI) * 0.16 : 0;
     const noseM = M4.create();
     M4.copy(noseM, headM);
-    M4.translate(noseM, noseM, 0, -0.014, 0.294 - boopSquish * 0.09);
+    M4.translate(noseM, noseM, 0, -0.010, 0.314 - boopSquish * 0.09);
     M4.scale(noseM, noseM, 1 + boopSquish, 1 - boopSquish * 0.5, 1 - boopSquish);
     drawMesh(meshes.nose, noseM, { matType: 1, base: pal.noseBase, tip: pal.noseTip });
-    hitSpheres.nose.pos = M4.transformPoint(headM, 0, -0.014, 0.30);
+    hitSpheres.nose.pos = M4.transformPoint(headM, 0, -0.010, 0.318);
 
     // Soulful Glossy Dark Eyes + Soft Dark Eye Rims & Fine Whiskers
     drawMesh(meshes.facialDetails, headM, { matType: 4, base: [1, 1, 1] });
@@ -2519,7 +2521,7 @@
     for (const s of [-1, 1]) {
       const eyeM = M4.create();
       M4.copy(eyeM, headM);
-      M4.translate(eyeM, eyeM, s * 0.100, 0.052, 0.192);
+      M4.translate(eyeM, eyeM, s * 0.098, 0.056, 0.212);
       const eyeSz = state.coat === 'baby2012' ? 1.12 : 1.0;
       M4.scale(eyeM, eyeM, eyeSz, eyeSz, eyeSz);
       drawMesh(meshes.eye, eyeM, { matType: 2, base: [0.035, 0.02, 0.018] });
@@ -2528,7 +2530,7 @@
         const lidM = M4.create();
         M4.copy(lidM, eyeM);
         M4.rotateX(lidM, lidM, lerp(-1.25, 0.18, closeAmt));
-        drawVolumetricFur(meshes.eyelid, lidM, pal, 4, 0.38);
+        drawVolumetricFur(meshes.eyelid, lidM, pal, 6, 0.36, 0.4);
       }
     }
 
@@ -2536,21 +2538,21 @@
     const jawDrop = (rig.pantAmt * 0.028) + (state.barkTimer > 0 ? Math.abs(Math.sin(state.barkTimer * 18)) * 0.050 : 0) + (state.treat ? 0.022 : 0);
     const lipM = M4.create();
     M4.copy(lipM, headM);
-    M4.translate(lipM, lipM, 0, -0.088 - jawDrop, 0.236);
+    M4.translate(lipM, lipM, 0, -0.090 - jawDrop, 0.258);
     M4.rotateX(lipM, lipM, jawDrop * 3.5);
     drawMesh(meshes.mouthLip, lipM, { matType: 4, base: [1, 1, 1] });
 
     if (rig.pantAmt > 0.05 && !state.treat) {
       const tM = M4.create();
       M4.copy(tM, headM);
-      M4.translate(tM, tM, 0, -0.084 + Math.sin(elapsed * 9.5) * 0.008, 0.226);
+      M4.translate(tM, tM, 0, -0.086 + Math.sin(elapsed * 9.5) * 0.008, 0.248);
       M4.scale(tM, tM, rig.pantAmt, rig.pantAmt, rig.pantAmt);
       drawMesh(meshes.tonguePant, tM, { matType: 4, base: [0.88, 0.36, 0.45] });
     }
     if (rig.blepAmt > 0.05 && !state.treat) {
       const bM = M4.create();
       M4.copy(bM, headM);
-      M4.translate(bM, bM, 0, -0.070, 0.248);
+      M4.translate(bM, bM, 0, -0.070, 0.270);
       M4.scale(bM, bM, rig.blepAmt, rig.blepAmt, rig.blepAmt);
       drawMesh(meshes.tongueBlep, bM, { matType: 4, base: [0.89, 0.38, 0.47] });
     }
@@ -2558,7 +2560,7 @@
       const chewM = M4.create();
       M4.copy(chewM, headM);
       const nibble = Math.sin(elapsed * 11.0) * 0.06;
-      M4.translate(chewM, chewM, 0.01, -0.082, 0.244);
+      M4.translate(chewM, chewM, 0.01, -0.084, 0.266);
       M4.rotateX(chewM, chewM, nibble);
       M4.rotateZ(chewM, chewM, -0.15 + nibble * 0.5);
       drawMesh(meshes.chewStick, chewM, { matType: 4, base: [1, 1, 1] });
@@ -2616,7 +2618,7 @@
   function takePostcardPhoto() {
     const layer = document.getElementById('reactionLayer');
     const flash = document.createElement('div');
-    flash.className = 'camera-flash';
+    flash.className = 'camera-flash absolute inset-0 bg-white z-20';
     layer.appendChild(flash);
     setTimeout(() => flash.remove(), 480);
 
@@ -2676,7 +2678,7 @@
   function showBubble(text, screenX, screenY) {
     const layer = document.getElementById('reactionLayer');
     const el = document.createElement('div');
-    el.className = 'speech-bubble';
+    el.className = 'speech-bubble absolute px-3 py-1 rounded-full bg-[var(--card)]/95 border border-[var(--border)] text-xs font-semibold text-[var(--foreground)] shadow-md whitespace-nowrap';
     el.style.left = `${screenX}px`; el.style.top = `${screenY}px`;
     el.textContent = text;
     layer.appendChild(el);
@@ -2797,13 +2799,24 @@
   // =========================================================================
   function styleRadioGroup(containerId, attr, currentVal) {
     document.querySelectorAll(`#${containerId} button`).forEach((b) => {
-      b.classList.toggle('is-active', b.getAttribute(attr) === currentVal);
+      const active = b.getAttribute(attr) === currentVal;
+      b.classList.toggle('bg-[var(--primary)]', active);
+      b.classList.toggle('text-[var(--primary-foreground)]', active);
+      b.classList.toggle('border-[var(--primary)]', active);
+      b.classList.toggle('bg-[var(--background)]/60', !active);
+      b.classList.toggle('text-[var(--foreground)]', !active);
+      b.classList.toggle('border-[var(--border)]', !active);
     });
   }
 
   function styleToggleBtn(id, active) {
     const b = document.getElementById(id);
-    b.classList.toggle('is-active', active);
+    b.classList.toggle('bg-[var(--primary)]', active);
+    b.classList.toggle('text-[var(--primary-foreground)]', active);
+    b.classList.toggle('border-[var(--primary)]', active);
+    b.classList.toggle('bg-[var(--background)]/60', !active);
+    b.classList.toggle('text-[var(--foreground)]', !active);
+    b.classList.toggle('border-[var(--border)]', !active);
     const dot = b.querySelector('.state-dot');
     if (dot) dot.textContent = active ? 'On' : 'Off';
   }
@@ -2882,9 +2895,29 @@
     state.outfit = 'none'; state.glasses = false; state.plushie = true; state.cushion = true;
     state.treat = false; state.autoSpin = false;
     cam.goalYaw = 0.34; cam.goalPitch = 0.20; cam.goalDist = 3.15; cam.goalTargetY = 0.72;
-    setMood('Happy & Wagging');
+    setMood('Happy');
     refreshUI();
   });
+
+  // Collapsible Studio Drawer (closed by default on mobile/narrow screens so Hachi is 100% unobstructed!)
+  const toggleDrawerBtn = document.getElementById('toggleDrawerBtn');
+  const closeDrawerBtn = document.getElementById('closeDrawerBtn');
+  function setDrawerOpen(open) {
+    document.body.classList.toggle('drawer-open', open);
+    document.body.classList.toggle('drawer-closed', !open);
+    if (toggleDrawerBtn) toggleDrawerBtn.textContent = open ? '✕ Hide' : '✨ Menu';
+    setTimeout(resizeCanvas, 20);
+  }
+  if (toggleDrawerBtn) {
+    toggleDrawerBtn.addEventListener('click', () => {
+      setDrawerOpen(!document.body.classList.contains('drawer-open'));
+    });
+  }
+  if (closeDrawerBtn) {
+    closeDrawerBtn.addEventListener('click', () => setDrawerOpen(false));
+  }
+  // Open sidebar by default only on wide desktops (>= 1024px); keep 100% full-screen Hachi on mobile & narrow panes!
+  setDrawerOpen(window.innerWidth >= 1024);
 
   refreshUI();
 })();
